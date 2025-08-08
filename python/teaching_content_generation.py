@@ -126,8 +126,8 @@ def get_user_input() -> dict:
 
     # --- Web Search Toggle ---
     print("\n4. Web Search:")
-    web_search_choice = input("   - Enable web search for latest content? (yes/no, default: no): ").lower().strip()
-    web_search_enabled = web_search_choice.startswith('y')
+    web_search_choice:bool = True
+    web_search_enabled = web_search_choice
 
     return {
         "content_type": content_type,
@@ -150,11 +150,11 @@ async def run_generation_pipeline_async(config: dict):
     logger.info("Initializing Model and Tools for content generation")
 
     # --- MODIFIED: LLM Initialization Block ---
-    # Initialize the gpt-4o-mini model directly in this script.
+    # Initialize the gpt-4o model directly in this script.
     try:
-        logger.info("Initializing local OpenAI LLM: gpt-4o-mini")
+        logger.info("Initializing local OpenAI LLM: gpt-4o")
         llm = ChatOpenAI(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             temperature=0.5,
             openai_api_key=os.getenv("OPENAI_API_KEY")
         )

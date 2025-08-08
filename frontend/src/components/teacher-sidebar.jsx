@@ -1,5 +1,5 @@
 "use client"
-import { Sparkles, Brain, Home, GraduationCap, Settings, HelpCircle, Video, Mic } from "lucide-react"
+import { Sparkles, Brain, Home, GraduationCap, Settings, HelpCircle, Video, Mic, BrainCog } from "lucide-react"
 import { useState } from "react"
 import {
   Sidebar,
@@ -49,9 +49,9 @@ const navigationItems = [
     badgeVariant: "secondary",
   },
   {
-    title: "Voice Coaching",
+    title: "AI Coach",
     url: "/teacher/voice-coaching",
-    icon: Mic,
+    icon: BrainCog,
     badge: "NEW",
     badgeVariant: "secondary",
   }

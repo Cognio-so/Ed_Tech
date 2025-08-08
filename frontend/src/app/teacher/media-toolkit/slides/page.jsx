@@ -379,7 +379,7 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
                         size="sm"
                         variant="outline"
                         onClick={() => window.open(presentation.presentationUrl, '_blank')}
-                        className="flex-1 cursor-pointer bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg shadow-md "
+                        className="flex-1 cursor-pointer bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white hover:text-white rounded-lg shadow-md "
                       >
                         View
                       </Button>
@@ -387,7 +387,7 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
                         size="sm"
                         variant="destructive"
                         onClick={() => handleDeletePresentation(presentation._id)}
-                        className="flex-1 cursor-pointer bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg shadow-md"
+                        className="flex-1 cursor-pointer bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white hover:text-white rounded-lg shadow-md"
                       >
                         Delete
                       </Button>

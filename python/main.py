@@ -11,6 +11,16 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from fastapi.concurrency import run_in_threadpool
 
+# --- Configure Logging ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - [%(levelname)s] - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# --- Load Environment Variables ---
+load_dotenv()
+
 # --- Import functionalities from your scripts ---
 
 # Chatbot imports
@@ -23,25 +33,21 @@ from assessment import create_question_generation_chain, generate_test_questions
 from teaching_content_generation import run_generation_pipeline_async as generate_teaching_content
 
 # Media toolkit imports
-# Updated import to use the SlideSpeakGenerator class
 from media_toolkit.slides_generation import SlideSpeakGenerator
+from media_toolkit.image_generation_model import ImageGenerator
 
-# --- Load Environment Variables ---
-load_dotenv()
-
-# --- Configure Logging ---
-# Set up a clear logging format
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - [%(levelname)s] - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Import the Perplexity chat instance from your module
+try:
+    from media_toolkit.websearch_schema_based import chat as pplx_chat
+except Exception as e:
+    pplx_chat = None
+    logger.warning(f"Perplexity chat not initialized: {e}")
 
 # --- FastAPI App Initialization ---
 logger.info("Starting AI Education Platform API...")
 app = FastAPI(
     title="AI Education Platform API",
-    description="An API providing AI-powered tools for tutoring, assessment creation, and teaching content generation.",
+    description="An AI-powered tools for tutoring, assessment creation, and teaching content generation.",
     version="1.0.0"
 )
 
@@ -370,6 +376,75 @@ async def presentation_endpoint(schema: PresentationSchema):
     except Exception as e:
         logger.error(f"Error in presentation endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"An internal server error occurred: {e}")
+
+# ==============================
+# 5. IMAGE GENERATION ENDPOINT
+# ==============================
+class ImageGenSchema(BaseModel):
+    topic: str = Field(..., description="Topic for the image")
+    grade_level: str = Field(..., description="Grade level")
+    preferred_visual_type: str = Field(..., description="Visual type, e.g., image/chart/diagram")
+    subject: str = Field(..., description="Subject")
+    instructions: str = Field(..., description="Detailed instructions")
+    difficulty_flag: str = Field("false", description="true/false flag")
+
+@app.post("/image_generation_endpoint", response_model=Dict[str, Any])
+async def image_generation_endpoint(schema: ImageGenSchema):
+    try:
+        generator = ImageGenerator()
+        schema_dict = schema.model_dump()
+        image_url = generator.generate_image_from_schema(schema_dict)
+        if not image_url:
+            raise HTTPException(status_code=500, detail="Image generation failed.")
+        return {"image_url": image_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in image generation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==============================
+# 6. WEB SEARCH ENDPOINT
+# ==============================
+class WebSearchSchema(BaseModel):
+    topic: str = Field(..., description="Search topic")
+    grade_level: str = Field(..., description="Grade level (e.g., 10)")
+    subject: str = Field(..., description="Subject (e.g., History)")
+    content_type: str = Field(..., description="Preferred content type (e.g., articles, videos)")
+    language: str = Field("English", description="Language")
+    comprehension: str = Field("intermediate", description="Comprehension level")
+    max_results: int = Field(5, description="Maximum number of results")
+
+@app.post("/web_search_endpoint", response_model=Dict[str, Any])
+async def web_search_endpoint(schema: WebSearchSchema):
+    if not pplx_chat:
+        raise HTTPException(status_code=500, detail="Perplexity client not configured. Check PPLX_API_KEY.")
+
+    try:
+        data = schema.model_dump()
+        query = (
+            f"Show me up to {data['max_results']} {data['content_type']} about '{data['topic']}' "
+            f"for a grade {data['grade_level']} {data['subject']} class. "
+            f"The content should be in {data['language']} with a {data['comprehension']} comprehension level. "
+            "Include links in the response with detailed lengthy response content."
+            "Include the source of the content in the response."
+        )
+        full_response = ""
+        for chunk in pplx_chat.stream(query):
+            full_response += chunk.content or ""
+
+        if not full_response.strip():
+            raise HTTPException(status_code=500, detail="Web search returned empty response.")
+
+        return {
+            "query": query,
+            "content": full_response
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in web search endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- Uvicorn Server Runner ---
 if __name__ == "__main__":

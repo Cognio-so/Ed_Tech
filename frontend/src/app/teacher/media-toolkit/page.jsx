@@ -10,7 +10,7 @@ import SlidesGenerator from "./slides/page"
 import VideoCreator from "./video/page"
 import ImageGenerator from "./images/page"
 import ComicsCreator from "./comics/page"
-import WebContentCurator from "./web/page"
+import WebContentCurator from "./web-search/page"
 
 const MediaToolkitPage = () => {
   const [activeSection, setActiveSection] = useState("slides")

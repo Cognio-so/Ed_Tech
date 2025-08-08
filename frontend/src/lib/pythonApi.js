@@ -209,6 +209,43 @@ class PythonApiClient {
     if (questionTypes.mcq) return 'MCQ';
     return 'MCQ'; // Default fallback
   }
+
+  // Image generation endpoint
+  async generateImage(imageData) {
+    const pythonSchema = {
+      topic: imageData.topic,
+      grade_level: imageData.gradeLevel,
+      preferred_visual_type: imageData.visualType, // 'image' | 'chart' | 'diagram'
+      subject: imageData.subject,
+      difficulty_flag: (imageData.difficultyFlag ? 'true' : 'false'),
+      instructions: imageData.instructions,
+    };
+
+    console.log('Sending image generation request:', pythonSchema);
+    return this.makeRequest('/image_generation_endpoint', {
+      method: 'POST',
+      body: JSON.stringify(pythonSchema),
+    });
+  }
+
+  // Web search endpoint
+  async runWebSearch(searchData) {
+    const pythonSchema = {
+      topic: searchData.topic,
+      grade_level: searchData.gradeLevel,
+      subject: searchData.subject,
+      content_type: searchData.contentType, // e.g., 'articles', 'videos'
+      language: searchData.language || 'English',
+      comprehension: searchData.comprehension || 'intermediate',
+      max_results: parseInt(searchData.maxResults),
+    };
+
+    console.log('Sending web search request:', pythonSchema);
+    return this.makeRequest('/web_search_endpoint', {
+      method: 'POST',
+      body: JSON.stringify(pythonSchema),
+    });
+  }
 }
 
 export default new PythonApiClient(); 

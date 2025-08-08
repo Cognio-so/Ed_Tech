@@ -282,7 +282,7 @@ export default function AssessmentBuilderPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+                          <DialogContent className="sm:max-w-[800px] max-h-[800px] overflow-y-auto">
                             <DialogHeader>
                               <DialogTitle>{assessment.title}</DialogTitle>
                               <DialogDescription>{assessment.description || 'AI-generated assessment with no additional description provided.'}</DialogDescription>
@@ -323,27 +323,6 @@ export default function AssessmentBuilderPage() {
                                   </div>
                                 ) : (
                                   <p className="text-muted-foreground">No questions available.</p>
-                                )}
-                              </div>
-
-                              <Separator />
-
-                              {/* Solutions Section */}
-                              <div>
-                                <h3 className="font-semibold text-lg mb-3">Solutions ({assessment.solutions?.length || 0})</h3>
-                                {assessment.solutions && assessment.solutions.length > 0 ? (
-                                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                                    {assessment.solutions.map((solution, index) => (
-                                      <div key={index} className="p-3 border rounded-md bg-green-50 dark:bg-green-950/30">
-                                        <p className="text-sm">
-                                          <span className="font-semibold">{solution.questionNumber}.</span>{" "}
-                                          <span className="text-green-700 dark:text-green-300">{solution.answer}</span>
-                                        </p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-muted-foreground">No solutions available.</p>
                                 )}
                               </div>
                             </div>

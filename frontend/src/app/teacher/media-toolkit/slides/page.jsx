@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Presentation, RefreshCw, Languages, Image, Type, Save, History } from "lucide-react"
+import { Presentation, RefreshCw, Languages, Image, Type, Save, History, PresentationIcon } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -27,15 +27,31 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
   
   // UI state
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState(null)
   const [localGeneratedContent, setLocalGeneratedContent] = useState(null)
   const [savedPresentations, setSavedPresentations] = useState([])
   const [isLoadingSaved, setIsLoadingSaved] = useState(false)
 
-  // Load saved presentations on component mount
   useEffect(() => {
     fetchSavedPresentations();
   }, []);
+
+  const dedupePresentations = (list) => {
+    const seen = new Set()
+    const out = []
+    for (const p of list) {
+      const key = p.presentationUrl || p.taskId || p._id
+      if (!key) {
+        out.push(p)
+        continue
+      }
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(p)
+    }
+    return out
+  }
 
   const fetchSavedPresentations = async () => {
     setIsLoadingSaved(true);
@@ -43,7 +59,8 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
       const response = await fetch('/api/presentations');
       if (response.ok) {
         const data = await response.json();
-        setSavedPresentations(data.presentations || []);
+        const cleaned = dedupePresentations(data.presentations || []);
+        setSavedPresentations(cleaned);
       }
     } catch (error) {
       console.error('Failed to fetch presentations:', error);
@@ -67,9 +84,7 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
     try {
       const response = await fetch('/api/presentations/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
           topic: topic.trim(),
@@ -89,23 +104,11 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
 
       if (data.success && data.presentation) {
         const newContent = {
-          title: data.presentation.title,
-          url: data.presentation.presentationUrl,
-          downloadUrl: data.presentation.downloadUrl,
-          slideCount: data.presentation.slideCount,
-          status: data.presentation.status,
-          errorMessage: data.presentation.errorMessage,
-          id: data.presentation.id,
-          createdAt: data.presentation.createdAt
+          ...data.presentation
         }
-        
         setLocalGeneratedContent(newContent)
         setGeneratedContent && setGeneratedContent(prev => ({ ...prev, slides: newContent }))
-        
-        // Refresh the saved presentations list
-        await fetchSavedPresentations();
-        
-        toast.success('Presentation generated successfully!')
+        toast.success('Presentation generated. Preview, then Save to library.')
       } else {
         throw new Error('Invalid response format')
       }
@@ -114,6 +117,44 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
       toast.error(err.message || 'Failed to generate presentation')
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!localGeneratedContent) return
+    try {
+      setIsSaving(true)
+      const response = await fetch('/api/presentations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          // include generation meta and form context
+          title,
+          topic,
+          customInstructions,
+          slideCount: localGeneratedContent.slideCount,
+          language,
+          includeImages,
+          verbosity,
+          taskId: localGeneratedContent.taskId,
+          status: localGeneratedContent.status,
+          presentationUrl: localGeneratedContent.presentationUrl || localGeneratedContent.url || null,
+          downloadUrl: localGeneratedContent.downloadUrl || null,
+          errorMessage: localGeneratedContent.errorMessage || null
+        })
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to save presentation')
+      }
+
+      toast.success('Presentation saved')
+      await fetchSavedPresentations()
+    } catch (e) {
+      console.error(e)
+      toast.error(e.message || 'Failed to save presentation')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -136,19 +177,14 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8">
+    <div className="max-w-6xl mx-auto p-6 space-y-8">
       {/* Input Form */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-xl shadow-lg backdrop-blur-sm"
+        className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-2xl shadow-xl backdrop-blur-md ring-1 ring-black/5"
       >
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 text-center mb-6 flex items-center justify-center gap-2">
-          <Presentation className="h-6 w-6 text-blue-600" />
-          Create Your AI Presentation
-        </h2>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column */}
           <div className="space-y-6">
@@ -292,12 +328,14 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <PPTXViewer
-            presentationUrl={localGeneratedContent.url}
+            presentationUrl={localGeneratedContent.presentationUrl || localGeneratedContent.url}
             downloadUrl={localGeneratedContent.downloadUrl}
             title={localGeneratedContent.title}
             slideCount={localGeneratedContent.slideCount}
             status={localGeneratedContent.status}
             errorMessage={localGeneratedContent.errorMessage}
+            onSave={handleSave}
+            isSaving={isSaving}
           />
         </motion.div>
       )}
@@ -311,8 +349,8 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
           className="space-y-4"
         >
           <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Your Presentations ({savedPresentations.length})
+            <PresentationIcon className="h-5 w-5" />
+            Your Presentations
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -324,13 +362,6 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center justify-between">
                     <span className="truncate">{presentation.title}</span>
-                    <Badge 
-                      variant={presentation.status === 'SUCCESS' ? 'default' : 
-                              presentation.status === 'FAILURE' ? 'destructive' : 'secondary'}
-                      className="ml-2"
-                    >
-                      {presentation.status}
-                    </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -348,7 +379,7 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
                         size="sm"
                         variant="outline"
                         onClick={() => window.open(presentation.presentationUrl, '_blank')}
-                        className="flex-1"
+                        className="flex-1 cursor-pointer bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg shadow-md "
                       >
                         View
                       </Button>
@@ -356,17 +387,13 @@ const SlidesGenerator = ({ setGeneratedContent }) => {
                         size="sm"
                         variant="destructive"
                         onClick={() => handleDeletePresentation(presentation._id)}
+                        className="flex-1 cursor-pointer bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg shadow-md"
                       >
                         Delete
                       </Button>
                     </div>
                   )}
                   
-                  {presentation.status === 'FAILURE' && (
-                    <div className="text-xs text-red-500 dark:text-red-400">
-                      {presentation.errorMessage || 'Generation failed'}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             ))}

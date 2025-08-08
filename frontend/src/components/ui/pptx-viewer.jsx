@@ -9,7 +9,8 @@ import {
   FileText, 
   Loader2,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Save as SaveIcon
 } from 'lucide-react';
 import { Button } from './button';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
@@ -20,7 +21,9 @@ const PPTXViewer = ({
   title, 
   slideCount, 
   status = 'SUCCESS',
-  errorMessage 
+  errorMessage,
+  onSave,
+  isSaving = false
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [previewError, setPreviewError] = useState(false);
@@ -40,15 +43,12 @@ const PPTXViewer = ({
       const response = await fetch(url);
       const blob = await response.blob();
       
-      // Create download link
       const downloadLink = document.createElement('a');
       downloadLink.href = URL.createObjectURL(blob);
       downloadLink.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pptx`;
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
-      
-      // Clean up
       URL.revokeObjectURL(downloadLink.href);
     } catch (error) {
       console.error('Download failed:', error);
@@ -124,10 +124,9 @@ const PPTXViewer = ({
           {/* Preview Section */}
           <div className="space-y-3">
             <h4 className="font-medium text-gray-700 dark:text-gray-300">
-              Preview & Download
+              Preview & Actions
             </h4>
             
-            {/* Embedded preview attempt */}
             {presentationUrl && !previewError && (
               <div className="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
                 <iframe
@@ -150,12 +149,32 @@ const PPTXViewer = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {onSave && (
+              <Button
+                onClick={onSave}
+                disabled={isSaving}
+                className="sm:flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <SaveIcon className="h-4 w-4 mr-2" />
+                    Save to Library
+                  </>
+                )}
+              </Button>
+            )}
+
             {presentationUrl && (
               <Button
                 onClick={handlePreview}
                 variant="outline"
-                className="flex-1 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950/20"
+                className="sm:flex-1 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950/20"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Open in Browser
@@ -165,7 +184,7 @@ const PPTXViewer = ({
             <Button
               onClick={handleDownload}
               disabled={isLoading || (!downloadUrl && !presentationUrl)}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+              className="sm:flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
             >
               {isLoading ? (
                 <>
@@ -181,7 +200,6 @@ const PPTXViewer = ({
             </Button>
           </div>
 
-          {/* Technical Details */}
           <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
             <p>Generated with SlideSpeak AI • Supports PowerPoint, Google Slides, and more</p>
           </div>

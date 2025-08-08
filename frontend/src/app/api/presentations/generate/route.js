@@ -77,42 +77,34 @@ export async function POST(request) {
       verbosity 
     } = body;
 
-    // Validate required fields
     if (!title || !topic || !slideCount) {
       return NextResponse.json({ 
         error: 'Missing required fields: title, topic, and slideCount are required' 
       }, { status: 400 });
     }
 
-    console.log('Generating presentation with data for user:', effectiveUserId, body);
+    // Only generate; do NOT save here (autosave removed)
+    const presentationData = {
+      topic,
+      customInstructions: customInstructions || '',
+      slideCount: parseInt(slideCount),
+      language: language || 'ENGLISH',
+      includeImages: includeImages !== false,
+      verbosity: verbosity || 'standard'
+    };
 
-    await connectDB();
+    const pythonResponse = await pythonApi.generatePresentation(presentationData);
+    if (!pythonResponse || !pythonResponse.presentation) {
+      throw new Error('Invalid response from presentation service');
+    }
 
-    try {
-      // Call Python backend to generate presentation
-      const presentationData = {
-        topic,
-        customInstructions: customInstructions || '',
-        slideCount: parseInt(slideCount),
-        language: language || 'ENGLISH',
-        includeImages: includeImages !== false,
-        verbosity: verbosity || 'standard'
-      };
+    const result = pythonResponse.presentation;
+    const taskResult = result.task_result || {};
 
-      const pythonResponse = await pythonApi.generatePresentation(presentationData);
-      
-      if (!pythonResponse || !pythonResponse.presentation) {
-        throw new Error('Invalid response from presentation service');
-      }
-
-      const result = pythonResponse.presentation;
-      
-      // Extract the task result for successful presentations
-      const taskResult = result.task_result || {};
-      
-      // Save presentation to database
-      const presentation = new Presentation({
-        userId: effectiveUserId,
+    return NextResponse.json({
+      success: true,
+      presentation: {
+        // include form/meta so client can save later
         title,
         topic,
         customInstructions: customInstructions || '',
@@ -124,59 +116,13 @@ export async function POST(request) {
         status: result.task_status || 'SUCCESS',
         presentationUrl: taskResult.url || null,
         downloadUrl: taskResult.download_url || taskResult.url || null,
-        apiResponse: result,
         errorMessage: result.task_status === 'FAILURE' ? (taskResult.error || 'Generation failed') : null
-      });
-
-      await presentation.save();
-
-      console.log('Presentation saved successfully:', presentation._id);
-
-      return NextResponse.json({
-        success: true,
-        presentation: {
-          id: presentation._id,
-          title: presentation.title,
-          topic: presentation.topic,
-          status: presentation.status,
-          presentationUrl: presentation.presentationUrl,
-          downloadUrl: presentation.downloadUrl,
-          slideCount: presentation.slideCount,
-          createdAt: presentation.createdAt,
-          errorMessage: presentation.errorMessage
-        }
-      });
-
-    } catch (pythonError) {
-      console.error('Python API error:', pythonError);
-      
-      // Save failed presentation attempt to database
-      const failedPresentation = new Presentation({
-        userId: effectiveUserId,
-        title,
-        topic,
-        customInstructions: customInstructions || '',
-        slideCount: parseInt(slideCount),
-        language: language || 'ENGLISH',
-        includeImages: includeImages !== false,
-        verbosity: verbosity || 'standard',
-        taskId: 'failed',
-        status: 'FAILURE',
-        errorMessage: pythonError.message || 'Generation failed'
-      });
-
-      await failedPresentation.save();
-
-      return NextResponse.json({
-        error: 'Failed to generate presentation',
-        details: pythonError.message
-      }, { status: 500 });
-    }
-
+      }
+    });
   } catch (error) {
     console.error('Generate presentation error:', error);
     return NextResponse.json(
-      { error: 'Failed to process presentation request' },
+      { error: 'Failed to process presentation request', details: error.message },
       { status: 500 }
     );
   }

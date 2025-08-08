@@ -6,7 +6,7 @@ import { Presentation, Video, Image, BookOpen, Globe, Sparkles, Download, Edit, 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import SlidesGenerator from "./slider/page"
+import SlidesGenerator from "./slides/page"
 import VideoCreator from "./video/page"
 import ImageGenerator from "./images/page"
 import ComicsCreator from "./comics/page"
@@ -140,35 +140,8 @@ const MediaToolkitPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <h2 className="text-2xl font-bold text-center text-slate-800 dark:text-slate-200 mb-6">
-              Generated Content
-            </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {generatedContent.slides && (
-                <Card className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border-blue-200 dark:border-blue-800">
-                  <CardHeader>
-                    <CardTitle className="text-blue-800 dark:text-blue-200 flex items-center gap-2">
-                      <Presentation className="h-5 w-5" />
-                      {generatedContent.slides.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-blue-700 dark:text-blue-300 mb-4">{generatedContent.slides.preview}</p>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline">
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
               {generatedContent.video && (
                 <Card className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-950/20 dark:to-pink-950/20 border-red-200 dark:border-red-800">
                   <CardHeader>

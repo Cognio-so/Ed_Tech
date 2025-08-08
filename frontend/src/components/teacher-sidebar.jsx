@@ -1,5 +1,5 @@
 "use client"
-import { Sparkles, Brain, Home, GraduationCap, Settings, HelpCircle, Video, Mic, BrainCog } from "lucide-react"
+import { Sparkles, Brain, Home, GraduationCap, Settings, HelpCircle, Video, Mic, BrainCog, BookOpen, Users } from "lucide-react"
 import { useState } from "react"
 import {
   Sidebar,
@@ -52,6 +52,20 @@ const navigationItems = [
     title: "AI Coach",
     url: "/teacher/voice-coaching",
     icon: BrainCog,
+    badge: "NEW",
+    badgeVariant: "secondary",
+  },
+  {
+    title: "Class Profiling",
+    url: "/teacher/class-profiling",
+    icon: Users,
+    badge: "NEW",
+    badgeVariant: "secondary",
+  },
+  {
+    title: "Teacher Library",
+    url: "/teacher/teacher-library",
+    icon: BookOpen,
     badge: "NEW",
     badgeVariant: "secondary",
   }

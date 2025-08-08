@@ -112,13 +112,13 @@ def get_user_input() -> dict:
     print("\n3. Advanced Settings:")
     emotional_consideration = input("   - Emotional Considerations (comma-separated, e.g., anxiety, low confidence, Enter to skip): ") or "None"
 
-    depths = ["low", "standard", "high"]
+    depths = ["Basic", "Standard", "Advanced"]
     print("   - Instructional Depth:")
     for i, d in enumerate(depths, 1):
         print(f"     {i}. {d.title()}")
     instructional_depth = _get_choice_from_user(depths, f"Enter name or number (1-{len(depths)})", default="standard")
 
-    versions = ["low", "standard", "high"]
+    versions = ["Simplified", "Standard", "Enriched"]
     print("   - Content Version:")
     for i, v in enumerate(versions, 1):
         print(f"     {i}. {v.title()}")

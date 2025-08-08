@@ -25,3 +25,4 @@ langchain-qdrant
 langgraph
 langsmith
 python-multipart
+langchain_perplexity

@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from fastapi.concurrency import run_in_threadpool
 
 # --- Import functionalities from your scripts ---
 
@@ -22,7 +23,8 @@ from assessment import create_question_generation_chain, generate_test_questions
 from teaching_content_generation import run_generation_pipeline_async as generate_teaching_content
 
 # Media toolkit imports
-from media_toolkit import generate_slidespeak_presentation
+# Updated import to use the SlideSpeakGenerator class
+from media_toolkit.slides_generation import SlideSpeakGenerator
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -324,14 +326,19 @@ async def presentation_endpoint(schema: PresentationSchema):
         raise HTTPException(status_code=500, detail="Presentation generation is not configured on the server.")
     
     try:
-        # Convert the schema to dict for processing
-        schema_dict = schema.model_dump()
-        
+        # Instantiate the generator. It will automatically use the API key from the environment.
+        try:
+            generator = SlideSpeakGenerator()
+        except ValueError as e:
+            logger.error(f"Failed to initialize SlideSpeakGenerator: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
         logger.info(f"Generating presentation for topic: {schema.plain_text}")
-        logger.info(f"Presentation config: {schema_dict}")
         
-        # Call the SlideSpeak generation function
-        result = generate_slidespeak_presentation(
+        # The generate_presentation method in SlideSpeakGenerator is synchronous (uses requests and time.sleep).
+        # To avoid blocking the server's event loop, we run it in a separate thread pool.
+        result = await run_in_threadpool(
+            generator.generate_presentation,
             plain_text=schema.plain_text,
             custom_user_instructions=schema.custom_user_instructions,
             length=schema.length,
@@ -340,7 +347,7 @@ async def presentation_endpoint(schema: PresentationSchema):
             verbosity=schema.verbosity
         )
         
-        # Check if the result contains an error
+        # Check if the result contains an error key from the generator class
         if "error" in result:
             logger.error(f"SlideSpeak API error: {result['error']}")
             raise HTTPException(status_code=500, detail=f"Presentation generation failed: {result['error']}")
@@ -358,7 +365,7 @@ async def presentation_endpoint(schema: PresentationSchema):
             raise HTTPException(status_code=500, detail="Presentation generation returned unexpected status")
         
     except HTTPException:
-        # Re-raise HTTP exceptions
+        # Re-raise HTTP exceptions to be handled by FastAPI
         raise
     except Exception as e:
         logger.error(f"Error in presentation endpoint: {e}", exc_info=True)

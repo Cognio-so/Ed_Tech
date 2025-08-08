@@ -1,13 +1,14 @@
 import os
 import asyncio  # ASYNC: Imported asyncio
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 
 load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY")
-
+# openai_api_key = os.getenv("OPENAI_API_KEY")
+google_api_key= os.getenv("GOOGLE_API_KEY")
 SYSTEM_PROMPT = """
 You are an expert AI assistant specialized in creating educational materials. Your task is to generate a set of test questions based on the user-provided schema.
 
@@ -22,28 +23,22 @@ Please adhere to the following specifications:
 - **Subject:** {subject}
 - **Topic:** {topic}
 - **Assessment Type:** {assessment_type}
-- **Question Types:** {question_types}
-- **Question Distribution:** {question_distribution}
 - **Test Duration:** {test_duration}
 - **Number of Questions:** {number_of_questions}
 - **Difficulty Level:** {difficulty_level}
-- **Learning Objectives:** {learning_objectives}
-- **Anxiety Considerations:** {anxiety_triggers}
 - **User-Specific Instructions:** {user_prompt}
 
-**CRITICAL REQUIREMENTS:**
-- **EXACT NUMBER REQUIREMENT:** You MUST generate EXACTLY {number_of_questions} questions - NO MORE, NO LESS. This is a strict requirement.
-- **Question Type Distribution:** When multiple question types are specified, generate questions according to the EXACT distribution provided. For example, if the distribution is {{"mcq": 6, "true_false": 2, "short_answer": 2}}, generate EXACTLY 6 MCQ questions, 2 True/False questions, and 2 Short Answer questions.
-- **Mixed Format Handling:** When generating mixed question types, clearly indicate the question type for each question in parentheses before the question number.
+**Crucial Instructions:**
+- **Priority of Instructions:** In the event of a conflict between the `User-Specific Instructions` and the rules below, you **must** prioritize these Crucial Instructions to ensure the output format and integrity are maintained.
+- **Strictly Adhere to Assessment Type:** You must *only* generate questions that match the specified `{assessment_type}`. For instance, if 'MCQ' is requested, all questions must be Multiple Choice Questions. Do not mix formats.
 - **Separate Questions and Answers:** The entire output must be structured into two distinct parts: the questions first, followed by a clearly marked answer key.
 
 **Output Formatting Rules:**
 1.  **Generate Questions:**
-    - Generate the EXACT number and types of questions as specified in the distribution.
-    - For mixed assessments, prefix each question with its type: "(MCQ) 1.", "(T/F) 2.", "(SA) 3.", etc.
+    - First, generate the exact number of questions requested.
     - For 'MCQ' type, provide four options labeled A, B, C, and D.
-    - For 'True or False' type, provide a clear statement that can be definitively true or false.
-    - For 'Short Answer' type, ask a clear, specific question that can be answered in 1-3 sentences.
+    - For 'True or False' type, provide a clear statement.
+    - For 'Short Answer' type, ask a clear question.
     - **Do not** provide the answer immediately after a question.
 
 2.  **Generate the Answer Key:**
@@ -52,26 +47,22 @@ Please adhere to the following specifications:
 **Solutions**
     - Below this heading, list each question number and its corresponding correct answer.
     - Example for 'MCQ': `1. C`
-    - Example for 'True or False': `2. True`
-    - Example for 'Short Answer': `3. The Treaty of Paris ended the Revolutionary War in 1783.`
+    - Example for 'True or False': `1. True`
+    - Example for 'Short Answer': `1. The Treaty of Paris.`
 
-**Anxiety Considerations:**
-- If anxiety triggers are mentioned, adjust question wording to be clear and straightforward.
-- Avoid unnecessarily complex sentence structures or ambiguous phrasing.
-- Use encouraging, neutral language that doesn't add pressure.
-
-**Final Output:** The final output should contain *only* the generated questions and the separate answer key section. Do not include any other text, introductory phrases, or explanations outside of the questions themselves. Remember: EXACTLY {number_of_questions} questions must be generated.
+- **Final Output:** The final output should contain *only* the generated questions and the separate answer key section. Do not include any other text, introductory phrases, or explanations.
 """
 
-def create_question_generation_chain(openai_api_key: str, model_name: str = "gpt-4o-mini"):
+def create_question_generation_chain(google_api_key: str, model_name: str = "gemini-2.5-flash"):
     """
     Creates the LangChain model using LangChain Expression Language (LCEL).
     This function remains synchronous as it's for setup, not I/O.
     """
-    if not openai_api_key:
-        raise ValueError("OPENAI_API_KEY is not provided. Please provide a valid key.")
+    if not google_api_key:
+        raise ValueError("google_api_key is not provided. Please provide a valid key.")
     prompt_template = ChatPromptTemplate.from_template(SYSTEM_PROMPT)
-    model = ChatOpenAI(model=model_name, temperature=0.7, openai_api_key=openai_api_key)
+    # model = ChatOpenAI(model=model_name, temperature=0.7, openai_api_key=openai_api_key)
+    model = ChatGoogleGenerativeAI(model=model_name, temperature=0.7, google_api_key=google_api_key)
     output_parser = StrOutputParser()
     chain = prompt_template | model | output_parser
     return chain
@@ -88,53 +79,8 @@ async def generate_test_questions_async(chain, schema: dict):
     Returns:
         The generated text content.
     """
-    # Prepare the schema with proper formatting
-    formatted_schema = prepare_schema_for_prompt(schema)
-    
     # ASYNC: Using 'ainvoke' for a non-blocking API call
-    return await chain.ainvoke(formatted_schema)
-
-def prepare_schema_for_prompt(schema: dict):
-    """
-    Prepare the schema with proper formatting for the prompt.
-    """
-    formatted_schema = schema.copy()
-    
-    # Format question types and distribution
-    if 'question_types' in schema and 'question_distribution' in schema:
-        question_types = schema.get('question_types', [])
-        question_distribution = schema.get('question_distribution', {})
-        
-        # Format question types as a readable string
-        type_names = {
-            'mcq': 'Multiple Choice Questions (MCQ)',
-            'true_false': 'True/False Questions (T/F)',
-            'short_answer': 'Short Answer Questions (SA)'
-        }
-        
-        formatted_types = [type_names.get(qtype, qtype) for qtype in question_types]
-        formatted_schema['question_types'] = ', '.join(formatted_types)
-        
-        # Format distribution as a readable string
-        distribution_str = ', '.join([f"{type_names.get(qtype, qtype)}: {count}" for qtype, count in question_distribution.items()])
-        formatted_schema['question_distribution'] = distribution_str
-    else:
-        # Fallback for single question type - USE EXACT USER INPUT
-        formatted_schema['question_types'] = schema.get('assessment_type', 'MCQ')
-        formatted_schema['question_distribution'] = f"All {schema.get('number_of_questions')} questions"
-    
-    # Ensure all required fields have default values
-    required_defaults = {
-        'learning_objectives': 'Not specified',
-        'anxiety_triggers': 'None',
-        'user_prompt': 'None.'
-    }
-    
-    for key, default_value in required_defaults.items():
-        if key not in formatted_schema or not formatted_schema[key]:
-            formatted_schema[key] = default_value
-    
-    return formatted_schema
+    return await chain.ainvoke(schema)
 
 def get_user_input_from_terminal():
     """
@@ -164,11 +110,11 @@ async def main_cli_async():
     """
     load_dotenv()
     try:
-        openai_api_key = os.environ.get("OPENAI_API_KEY")
-        if not openai_api_key:
-            raise ValueError("OPENAI_API_KEY environment variable not set. Please set it in a .env file.")
+        google_api_key = os.environ.get("GOOGLE_API_KEY")
+        if not google_api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable not set. Please set it in a .env file.")
 
-        question_chain = create_question_generation_chain(openai_api_key) 
+        question_chain = create_question_generation_chain(google_api_key) 
         user_schema = get_user_input_from_terminal()
         
         print("\n" + "="*50)

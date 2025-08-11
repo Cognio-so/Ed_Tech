@@ -35,6 +35,7 @@ from teaching_content_generation import run_generation_pipeline_async as generat
 # Media toolkit imports
 from media_toolkit.slides_generation import SlideSpeakGenerator
 from media_toolkit.image_generation_model import ImageGenerator
+from media_toolkit.comics_generation import create_comical_story_prompt, generate_comic_image
 
 # Import the Perplexity chat instance from your module
 try:
@@ -100,12 +101,13 @@ try:
     logger.info("✅ AI Tutor session manager is ready.")
 
     # Initialize Assessment Generation Chain
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    if not openai_api_key:
-        logger.warning("OPENAI_API_KEY not found. Assessment endpoint may fail.")
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    logger.info(f"GOOGLE_API_KEY: {google_api_key}")
+    if not google_api_key:
+        logger.warning("GOOGLE_API_KEY not found. Assessment endpoint may fail.")
         assessment_chain = None
     else:
-        assessment_chain = create_question_generation_chain(openai_api_key)
+        assessment_chain = create_question_generation_chain(google_api_key)
         logger.info("✅ Assessment generation chain created successfully.")
     
     # Check SlideSpeak API Key
@@ -235,7 +237,7 @@ async def assessment_endpoint(schema: AssessmentSchema):
     Supports both single question type and mixed question type assessments.
     """
     if not assessment_chain:
-        logger.error("Assessment endpoint called, but chain is not initialized (likely missing OPENAI_API_KEY).")
+        logger.error("Assessment endpoint called, but chain is not initialized (likely missing or invalid GOOGLE_API_KEY).")
         raise HTTPException(status_code=500, detail="Assessment generation is not configured on the server.")
     
     try:
@@ -273,15 +275,41 @@ async def assessment_endpoint(schema: AssessmentSchema):
 # ==============================================================================
 
 class TeachingContentSchema(BaseModel):
-    content_type: str = Field(..., description="The type of teaching material to create.", example="lesson plan", pattern="^(lesson plan|worksheet|presentation|quiz)$")
+    content_type: str = Field(
+        ...,
+        description="The type of teaching material to create.",
+        example="lesson plan",
+        pattern="^(lesson plan|worksheet|presentation|quiz)$"
+    )
     subject: str = Field(..., description="The subject of the content.", example="Biology")
     lesson_topic: str = Field(..., description="The specific topic for the lesson.", example="Cellular Respiration")
     grade: str = Field(..., description="The target grade level for the content.", example="10th Grade")
-    learning_objective: Optional[str] = Field("Not specified", description="The specific learning objective for this content.")
-    emotional_consideration: Optional[str] = Field("None", description="Emotional factors to consider for students (e.g., anxiety).")
-    instructional_depth: str = Field("standard", description="The level of detail and complexity.", pattern="^(low|standard|high)$")
-    content_version: str = Field("standard", description="The version of the content (low=summary, standard=complete, high=enriched).", pattern="^(low|standard|high)$")
+    learning_objective: Optional[str] = Field(
+        "Not specified",
+        description="The specific learning objective for this content."
+    )
+    emotional_consideration: Optional[str] = Field(
+        "None",
+        description="Emotional factors to consider for students (e.g., anxiety)."
+    )
+    # Accept both old (low/high) and new (basic/advanced) forms, case-insensitive
+    instructional_depth: str = Field(
+        "standard",
+        description="The level of detail and complexity.",
+        pattern="(?i)^(low|standard|high|basic|advanced)$"
+    )
+    # Accept both old (low/high) and new (simplified/enriched), case-insensitive
+    content_version: str = Field(
+        "standard",
+        description="The version of the content.",
+        pattern="(?i)^(low|standard|high|simplified|enriched)$"
+    )
     web_search_enabled: bool = Field(False, description="Enable web search to fetch up-to-date information.")
+    # New: Forward additional AI options used by the generator module
+    additional_ai_options: Optional[List[str]] = Field(
+        default=None,
+        description="List of AI options: 'adaptive difficulty', 'include assessment', 'multimedia suggestion'"
+    )
 
 @app.post("/teaching_content_endpoint", response_model=Dict[str, Any])
 async def teaching_content_endpoint(schema: TeachingContentSchema):
@@ -445,6 +473,91 @@ async def web_search_endpoint(schema: WebSearchSchema):
     except Exception as e:
         logger.error(f"Error in web search endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==============================
+# 7. COMICS STREAMING ENDPOINT
+# ==============================
+class ComicsSchema(BaseModel):
+    instructions: str = Field(..., description="Educational story/topic, e.g., Water cycle")
+    grade_level: str = Field(..., description="Grade level string, e.g., '5' or 'Grade 5'")
+    num_panels: int = Field(..., description="Number of panels to generate", ge=1, le=20)
+
+def _parse_panel_prompts(story_text: str):
+    lines = story_text.strip().split("\n")
+    panels = []
+    for line in lines:
+        if "Panel_Prompt:" in line:
+            try:
+                prompt = line.split("Panel_Prompt:")[1].strip()
+                if prompt:
+                    panels.append(prompt)
+            except Exception:
+                continue
+    return panels
+
+@app.post("/comics_stream_endpoint")
+async def comics_stream_endpoint(schema: ComicsSchema):
+    async def event_stream():
+        import json
+        async def send(obj: dict):
+            # SSE event
+            yield f"data: {json.dumps(obj)}\n\n"
+
+        try:
+            # 1) Generate story/panel prompts
+            story_prompts = await run_in_threadpool(
+                create_comical_story_prompt,
+                schema.instructions,
+                schema.grade_level,
+                schema.num_panels
+            )
+            if not story_prompts:
+                async for chunk in send({"type": "error", "message": "Failed to generate story prompts."}):
+                    yield chunk
+                return
+
+            # Send the full story text first
+            async for chunk in send({"type": "story_prompts", "content": story_prompts}):
+                yield chunk
+
+            # 2) Parse and send each panel prompt, then image URL per panel
+            panel_prompts = _parse_panel_prompts(story_prompts)
+            if not panel_prompts:
+                async for chunk in send({"type": "error", "message": "No panel prompts parsed."}):
+                    yield chunk
+                return
+
+            for i, prompt in enumerate(panel_prompts[:schema.num_panels]):
+                panel_index = i + 1
+                # Emit the panel prompt
+                async for chunk in send({"type": "panel_prompt", "index": panel_index, "prompt": prompt}):
+                    yield chunk
+
+                # Generate panel image synchronously via threadpool to avoid blocking
+                image_url = await run_in_threadpool(generate_comic_image, prompt, panel_index)
+                async for chunk in send({
+                    "type": "panel_image",
+                    "index": panel_index,
+                    "url": image_url or ""
+                }):
+                    yield chunk
+
+            # Done
+            async for chunk in send({"type": "done"}):
+                yield chunk
+
+        except Exception as e:
+            logger.error(f"Error in comics stream: {e}", exc_info=True)
+            async for chunk in send({"type": "error", "message": str(e)}):
+                yield chunk
+
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "Content-Type": "text/event-stream",
+        "X-Accel-Buffering": "no",  # for some proxies
+    }
+    return StreamingResponse(event_stream(), headers=headers, media_type="text/event-stream")
 
 # --- Uvicorn Server Runner ---
 if __name__ == "__main__":

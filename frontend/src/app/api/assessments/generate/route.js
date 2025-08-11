@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import pythonApi from '@/lib/pythonApi';
+import { auth } from '@clerk/nextjs/server';
 
 export async function POST(request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     
     console.log('Generating assessment with data:', body);
@@ -13,11 +19,18 @@ export async function POST(request) {
     
     const { questions, solutions } = parseAssessmentContent(result.assessment, body.questionTypes);
     
+    // Include all required fields from the schema
     return NextResponse.json({
       success: true,
-      questions: questions,
-      solutions: solutions,
-      rawContent: result.assessment
+      questions,
+      solutions,
+      rawContent: result.assessment,
+      title: body.title,
+      grade: body.grade,
+      subject: body.subject,
+      duration: parseInt(body.duration),
+      status: 'draft',
+      clerkId: userId  // Include the clerkId
     });
   } catch (error) {
     console.error('Assessment generation error:', error);

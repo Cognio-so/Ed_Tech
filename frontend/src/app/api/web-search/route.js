@@ -6,8 +6,8 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function POST(request) {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
 
@@ -30,7 +30,7 @@ export async function POST(request) {
 
     await connectDB();
     const saved = await WebSearch.create({
-      userId: effectiveUserId,
+      clerkId: userId,
       topic: body.topic,
       gradeLevel: body.gradeLevel,
       subject: body.subject,
@@ -60,10 +60,10 @@ export async function POST(request) {
 
 export async function GET() {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await connectDB();
-    const items = await WebSearch.find({ userId: effectiveUserId })
+    const items = await WebSearch.find({ clerkId: userId })
       .sort({ createdAt: -1 })
       .limit(50);
     return NextResponse.json({ success: true, items });
@@ -75,15 +75,15 @@ export async function GET() {
 
 export async function DELETE(request) {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     }
     await connectDB();
-    const doc = await WebSearch.findOneAndDelete({ _id: id, userId: effectiveUserId });
+    const doc = await WebSearch.findOneAndDelete({ _id: id, clerkId: userId });
     if (!doc) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }

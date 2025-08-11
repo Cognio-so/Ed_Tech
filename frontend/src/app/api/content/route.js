@@ -5,20 +5,11 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function GET(request) {
   try {
-    const { userId } = auth();
-    
-    console.log(`Querying content for userId: ${userId}`);
+    const { userId } = await auth();
 
     await connectDB();
-    
-    if (!userId) {
-      const content = await Content.find({userId: userId}).sort({ createdAt: -1 });
-      return NextResponse.json({ content });
-    }
-    
-    const content = await Content.find({ userId }).sort({ createdAt: -1 });
-    console.log(`Content fetched for user ${userId}:`, content.length, "items");
-    
+
+    const content = await Content.find({ userId: userId }).sort({ createdAt: -1 });
     return NextResponse.json({ content });
   } catch (error) {
     console.error('Get content error:', error);
@@ -31,7 +22,7 @@ export async function GET(request) {
 
 export async function DELETE(request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -45,7 +36,7 @@ export async function DELETE(request) {
     }
     
     await connectDB();
-    const result = await Content.findOneAndDelete({ _id: id, userId });
+    const result = await Content.findOneAndDelete({ _id: id, userId: userId });
 
     if (!result) {
         return NextResponse.json({ error: 'Content not found or you do not have permission to delete it.' }, { status: 404 });

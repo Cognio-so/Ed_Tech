@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 
+if (mongoose.models.assessment) {
+  delete mongoose.models.assessment;
+}
+
 const questionSchema = new mongoose.Schema({
     type: {
         type: String,
@@ -40,7 +44,7 @@ const solutionSchema = new mongoose.Schema({
 }, { _id: false });
 
 const assessmentSchema = new mongoose.Schema({
-    userId: {
+    clerkId: {
         type: String,
         required: true,
     },
@@ -81,4 +85,4 @@ const assessmentSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-export default mongoose.models.assessment || mongoose.model("assessment", assessmentSchema);
+export default mongoose.model("assessment", assessmentSchema);

@@ -6,11 +6,9 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function POST(request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     
-    const effectiveUserId = userId || 'dev-user-123';
-    
-    console.log('Generating content with data for user:', effectiveUserId);
+    console.log('Generating content with data for user:', userId);
     
     const body = await request.json();
     
@@ -29,7 +27,7 @@ export async function POST(request) {
     await connectDB();
     const savedContent = await Content.create({
       ...body,
-      userId: effectiveUserId,
+      clerkId: userId,
       generatedContent: result.generated_content,
       createdAt: new Date()
     });

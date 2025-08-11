@@ -5,10 +5,9 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function GET() {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
+    const { userId } = await auth();
     await connectDB();
-    const items = await ImageModel.find({ userId: effectiveUserId })
+    const items = await ImageModel.find({ clerkId: userId })
       .sort({ createdAt: -1 })
       .limit(50);
     return NextResponse.json({ success: true, items });
@@ -20,15 +19,14 @@ export async function GET() {
 
 export async function DELETE(request) {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
+    const { userId } = await auth();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     }
     await connectDB();
-    const doc = await ImageModel.findOneAndDelete({ _id: id, userId: effectiveUserId });
+    const doc = await ImageModel.findOneAndDelete({ _id: id, clerkId: userId });
     if (!doc) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }

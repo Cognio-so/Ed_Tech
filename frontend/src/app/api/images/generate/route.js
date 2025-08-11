@@ -6,8 +6,7 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function POST(request) {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
+    const { userId } = await auth();
 
     const body = await request.json();
 
@@ -30,7 +29,7 @@ export async function POST(request) {
 
     await connectDB();
     const saved = await ImageModel.create({
-      userId: effectiveUserId,
+      clerkId: userId,
       topic: body.topic,
       gradeLevel: body.gradeLevel,
       subject: body.subject,

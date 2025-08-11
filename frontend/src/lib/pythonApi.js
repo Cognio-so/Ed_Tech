@@ -78,17 +78,24 @@ class PythonApiClient {
 
   // Content generation endpoints
   async generateContent(contentData) {
-    // Transform frontend data to match Python backend schema
+    // map frontend feature toggles to generator options
+    const additional_ai_options = [];
+    if (contentData.adaptiveLevel) additional_ai_options.push('adaptive difficulty');
+    if (contentData.includeAssessment) additional_ai_options.push('include assessment');
+    if (contentData.multimediaSuggestions) additional_ai_options.push('multimedia suggestion');
+
     const pythonSchema = {
-      content_type: contentData.contentType.replace('-', ' '), // Convert "lesson-plan" to "lesson plan"
+      content_type: contentData.contentType.replace('-', ' '), // "lesson plan" | "worksheet" | "presentation" | "quiz"
       subject: contentData.subject,
       lesson_topic: contentData.topic,
       grade: `${contentData.grade}th Grade`,
       learning_objective: contentData.objectives || 'Not specified',
       emotional_consideration: contentData.emotionalFlags || 'None',
-      instructional_depth: contentData.instructionalDepth,
-      content_version: contentData.contentVersion,
-      web_search_enabled: contentData.webSearchEnabled || false
+      // allow both old/new forms; backend accepts both via regex
+      instructional_depth: contentData.instructionalDepth || 'standard',     // e.g., 'standard' | 'basic' | 'advanced' | 'low' | 'high'
+      content_version: contentData.contentVersion || 'standard',             // e.g., 'standard' | 'simplified' | 'enriched' | 'low' | 'high'
+      web_search_enabled: contentData.webSearchEnabled || true,
+      additional_ai_options: additional_ai_options.length ? additional_ai_options : undefined,
     };
 
     console.log('Sending content request:', pythonSchema);
@@ -244,6 +251,21 @@ class PythonApiClient {
     return this.makeRequest('/web_search_endpoint', {
       method: 'POST',
       body: JSON.stringify(pythonSchema),
+    });
+  }
+
+  // Comics streaming: returns the raw fetch Response
+  async startComicsStream(comicsData) {
+    const url = `${this.baseUrl}/comics_stream_endpoint`;
+    const payload = {
+      instructions: comicsData.instructions,
+      grade_level: comicsData.gradeLevel,
+      num_panels: parseInt(comicsData.numPanels),
+    };
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
   }
 }

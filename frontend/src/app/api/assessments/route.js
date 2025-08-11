@@ -6,12 +6,13 @@ import { auth } from '@clerk/nextjs/server';
 export async function GET(request) {
   try {
     const { userId } = await auth();
+    console.log('user found', userId);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
-    const assessments = await assessmentModel.find({ userId: userId }).sort({ createdAt: -1 });
+    const assessments = await assessmentModel.find({ clerkId: userId }).sort({ createdAt: -1 });
     
     return NextResponse.json({ assessments });
   } catch (error) {
@@ -26,6 +27,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const { userId } = await auth();
+    console.log('user found', userId);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -33,14 +35,20 @@ export async function POST(request) {
     const body = await request.json();
     await connectDB();
     
-    // Prepare the assessment data with separated questions and solutions
+    // Ensure all required fields are present
     const assessmentData = {
-      ...body,
-      userId: userId,
-      createdAt: new Date(),
+      clerkId: userId,
+      title: body.title,
+      grade: body.grade,
+      subject: body.subject,
+      description: body.description || '',
+      duration: parseInt(body.duration),
+      status: body.status || 'draft',
+      anxietyTriggers: body.anxietyTriggers || [],
       questions: body.questions || [],
       solutions: body.solutions || [],
-      rawContent: body.rawContent || ''
+      rawContent: body.rawContent || '',
+      createdAt: new Date()
     };
     
     console.log(`Saving assessment with ${assessmentData.questions.length} questions and ${assessmentData.solutions.length} solutions`);
@@ -51,7 +59,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Save assessment error:', error);
     return NextResponse.json(
-      { error: 'Failed to save assessment' },
+      { error: error.message || 'Failed to save assessment' },
       { status: 500 }
     );
   }
@@ -67,8 +75,8 @@ export async function DELETE(request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
-    await connectDB();
-    await assessmentModel.findOneAndDelete({ _id: id, userId: userId });
+    await connectDB();  
+    await assessmentModel.findOneAndDelete({ _id: id, clerkId: userId });
     
     return NextResponse.json({ success: true });
   } catch (error) {

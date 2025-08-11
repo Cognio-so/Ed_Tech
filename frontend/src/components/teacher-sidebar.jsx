@@ -55,13 +55,13 @@ const navigationItems = [
     badge: "NEW",
     badgeVariant: "secondary",
   },
-  {
-    title: "Class Profiling",
-    url: "/teacher/class-profiling",
-    icon: Users,
-    badge: "NEW",
-    badgeVariant: "secondary",
-  },
+  // {
+  //   title: "Class Profiling",
+  //   url: "/teacher/class-profiling",
+  //   icon: Users,
+  //   badge: "NEW",
+  //   badgeVariant: "secondary",
+  // },
   {
     title: "Teacher Library",
     url: "/teacher/teacher-library",

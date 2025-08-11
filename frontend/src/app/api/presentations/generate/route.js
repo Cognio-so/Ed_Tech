@@ -6,17 +6,14 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function GET(request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     
-    // Use effectiveUserId like other routes do for development
-    const effectiveUserId = userId || 'dev-user-123';
-    
-    console.log(`Querying presentations for userId: ${effectiveUserId}`);
+    console.log(`Querying presentations for userId: ${userId}`);
 
     await connectDB();
     
-    const presentations = await Presentation.find({ userId: effectiveUserId }).sort({ createdAt: -1 });
-    console.log(`Presentations fetched for user ${effectiveUserId}:`, presentations.length, "items");
+    const presentations = await Presentation.find({ clerkId: userId }).sort({ createdAt: -1 });
+    console.log(`Presentations fetched for user ${userId}:`, presentations.length, "items");
     
     return NextResponse.json({ presentations });
   } catch (error) {
@@ -30,11 +27,8 @@ export async function GET(request) {
 
 export async function DELETE(request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     
-    // Use effectiveUserId like other routes do for development
-    const effectiveUserId = userId || 'dev-user-123';
-
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
@@ -43,7 +37,7 @@ export async function DELETE(request) {
     }
     
     await connectDB();
-    const result = await Presentation.findOneAndDelete({ _id: id, userId: effectiveUserId });
+    const result = await Presentation.findOneAndDelete({ _id: id, clerkId: userId });
 
     if (!result) {
         return NextResponse.json({ error: 'Presentation not found or you do not have permission to delete it.' }, { status: 404 });
@@ -61,11 +55,8 @@ export async function DELETE(request) {
 
 export async function POST(request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     
-    // Use effectiveUserId like other routes do for development
-    const effectiveUserId = userId || 'dev-user-123';
-
     const body = await request.json();
     const { 
       title,
@@ -85,6 +76,7 @@ export async function POST(request) {
 
     // Only generate; do NOT save here (autosave removed)
     const presentationData = {
+      clerkId: userId,
       topic,
       customInstructions: customInstructions || '',
       slideCount: parseInt(slideCount),

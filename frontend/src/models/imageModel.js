@@ -1,7 +1,11 @@
 import mongoose from "mongoose";
 
+if (mongoose.models.Image) {
+  delete mongoose.models.Image;
+}
+
 const imageSchema = new mongoose.Schema({
-    userId: {
+    clerkId: {
         type: String,
         required: true,
     },
@@ -29,7 +33,7 @@ const imageSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    difficultyFlag: {
+    difficultyFlag: {   
         type: String,
         default: 'false',
     },
@@ -43,4 +47,4 @@ const imageSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-export default mongoose.models.Image || mongoose.model("Image", imageSchema);
+export default mongoose.model("Image", imageSchema);

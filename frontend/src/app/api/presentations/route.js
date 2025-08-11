@@ -5,11 +5,9 @@ import { auth } from '@clerk/nextjs/server';
 
 export async function GET(request) {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
-
+    const { userId } = await auth();
     await connectDB();
-    const presentations = await Presentation.find({ userId: effectiveUserId }).sort({ createdAt: -1 });
+    const presentations = await Presentation.find({ clerkId: userId }).sort({ createdAt: -1 });
     return NextResponse.json({ presentations });
   } catch (error) {
     console.error('Get presentations error:', error);
@@ -19,8 +17,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
+    const { userId } = await auth();
 
     const body = await request.json();
     const {
@@ -51,7 +48,7 @@ export async function POST(request) {
 
     let existing = null;
     if (or.length) {
-      existing = await Presentation.findOne({ userId: effectiveUserId, $or: or });
+      existing = await Presentation.findOne({ clerkId: userId, $or: or });
     }
 
     if (existing) {
@@ -72,7 +69,7 @@ export async function POST(request) {
     }
 
     const presentation = new Presentation({
-      userId: effectiveUserId,
+      clerkId: userId,
       title,
       topic,
       customInstructions,
@@ -112,15 +109,14 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
-    const { userId } = auth();
-    const effectiveUserId = userId || 'dev-user-123';
+    const { userId } = await auth();
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Presentation ID is required' }, { status: 400 });
 
     await connectDB();
-    const result = await Presentation.findOneAndDelete({ _id: id, userId: effectiveUserId });
+      const result = await Presentation.findOneAndDelete({ _id: id, clerkId: userId });
     if (!result) {
       return NextResponse.json({ error: 'Presentation not found or you do not have permission to delete it.' }, { status: 404 });
     }

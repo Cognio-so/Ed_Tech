@@ -1,9 +1,13 @@
 import mongoose from "mongoose";
 
+if (mongoose.models.WebSearch) {
+    delete mongoose.models.WebSearch;
+}
+
 const webSearchSchema = new mongoose.Schema({
-    userId: {
+    clerkId: {
         type: String,
-        required: true,
+        required: true, 
     },
     topic: {
         type: String,
@@ -51,4 +55,4 @@ const webSearchSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-export default mongoose.models.WebSearch || mongoose.model("WebSearch", webSearchSchema);
+export default mongoose.model("WebSearch", webSearchSchema  )

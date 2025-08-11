@@ -63,6 +63,7 @@ const InputMessages = ({
           </div>
         )}
 
+<div className="text-center text-5xl text-gray-800 dark:text-white">Coming soon with AI-voice assistant</div>
         <div className="w-full max-w-4xl mx-auto space-y-6">
           {messages.map((message) => (
             <div 

@@ -48,13 +48,7 @@ const navigationItems = [
     badge: "NEW",
     badgeVariant: "secondary",
   },
-  {
-    title: "AI Coach",
-    url: "/teacher/voice-coaching",
-    icon: BrainCog,
-    badge: "NEW",
-    badgeVariant: "secondary",
-  },
+  
   // {
   //   title: "Class Profiling",
   //   url: "/teacher/class-profiling",
@@ -68,7 +62,14 @@ const navigationItems = [
     icon: BookOpen,
     badge: "NEW",
     badgeVariant: "secondary",
-  }
+  },
+  {
+    title: "AI Coach",
+    url: "/teacher/voice-coaching",
+    icon: BrainCog,
+    badge: "NEW",
+    badgeVariant: "secondary",
+  },
 ]
 
 

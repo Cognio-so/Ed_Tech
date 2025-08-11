@@ -243,12 +243,6 @@ async def run_generation_pipeline_async(config: dict):
 
             if results:
                 web_context = "Web search has been performed. Use the following latest information and source URLs to enrich your content:\n\n"
-                for i, res in enumerate(results, 1):
-                    if isinstance(res, dict):
-                        web_context += f"Result {i}:\n"
-                        web_context += f"  Title: {res.get('title', 'N/A')}\n"
-                        web_context += f"  URL: {res.get('url', 'N/A')}\n"
-                        web_context += f"  Content Snippet: {res.get('content', 'N/A')}\n\n"
                 logger.info("Web search completed and context created with results.")
             else:
                 web_context = "Web search was enabled but returned no relevant results. Proceed with general knowledge."

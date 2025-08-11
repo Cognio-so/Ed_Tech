@@ -333,11 +333,6 @@ export default function TeacherLibrary() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* tiny credit to inspiration */}
-      <div className="text-xs text-muted-foreground text-center pt-2">
-        UI inspired by design patterns on Dribbble: https://dribbble.com/
-      </div>
     </div>
   );
 }

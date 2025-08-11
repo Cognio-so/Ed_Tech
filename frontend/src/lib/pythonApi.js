@@ -1,7 +1,7 @@
 // Python Backend API Client
 class PythonApiClient {
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'http://localhost:8000';
+    this.baseUrl = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://ed-tech-python.onrender.com' || 'http://localhost:8000';
   }
 
   async makeRequest(endpoint, options = {}) {

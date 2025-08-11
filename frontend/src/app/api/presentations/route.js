@@ -6,6 +6,9 @@ import { auth } from '@clerk/nextjs/server';
 export async function GET(request) {
   try {
     const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    
     await connectDB();
     const presentations = await Presentation.find({ clerkId: userId }).sort({ createdAt: -1 });
     return NextResponse.json({ presentations });
@@ -18,7 +21,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const { userId } = await auth();
-
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await request.json();
     const {
       title,
@@ -110,7 +113,7 @@ export async function POST(request) {
 export async function DELETE(request) {
   try {
     const { userId } = await auth();
-
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Presentation ID is required' }, { status: 400 });

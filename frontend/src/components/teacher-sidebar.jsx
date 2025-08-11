@@ -50,7 +50,7 @@ const navigationItems = [
   },
   {
     title: "AI Coach",
-    url: "/teacher/voice-coaching",
+    url: "/teacher/ai-coach",
     icon: BrainCog,
     badge: "NEW",
     badgeVariant: "secondary",

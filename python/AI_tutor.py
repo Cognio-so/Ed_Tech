@@ -58,7 +58,7 @@ from langchain_community.document_loaders import (
 )
 
 # Import the web search tool
-from websearch_code import TavilyWebSearchTool
+from websearch_code import PerplexityWebSearchTool
 
 
 load_dotenv()
@@ -319,12 +319,17 @@ class AsyncRAGTutor:
         self.tools = [self.retriever_tool, general_conversation_tool]
         
         if self.config.web_search_enabled:
-            if os.getenv("TAVILY_API_KEY"):
-                logging.info("Web search is enabled and TAVILY_API_KEY is set.")
-                websearch_tool = TavilyWebSearchTool(max_results=5, search_depth='advanced', include_favicon=True, include_images=True).get_tool()
+            if os.getenv("PPLX_API_KEY"):
+                logging.info("Web search is enabled and PPLX_API_KEY is set.")
+                # Updated to use Perplexity 
+                websearch_tool = PerplexityWebSearchTool(
+                    max_results=5, 
+                    model="sonar", 
+                    include_links=True
+                ).get_tool()
                 self.tools.append(websearch_tool)
             else:
-                logging.warning("Web search is enabled in config, but TAVILY_API_KEY is not set. Web search will be disabled.")
+                logging.warning("Web search is enabled in config, but PPLX_API_KEY is not set. Web search will be disabled.")
                 
         self.tool_map = {tool.name: tool for tool in self.tools}
         self.llm_with_tools = self.llm.bind_tools(self.tools)
@@ -393,26 +398,25 @@ class AsyncRAGTutor:
         logging.info(f"Updating web search status to: {self.config.web_search_enabled}")
 
         # Check if the web search tool is currently in our list of tools
-        websearch_tool_present = any(tool.name == 'tavily_search_results_json' for tool in self.tools)
+        websearch_tool_present = any(tool.name == 'perplexity_search' for tool in self.tools)
 
         if self.config.web_search_enabled and not websearch_tool_present:
-            if os.getenv("TAVILY_API_KEY"):
+            if os.getenv("PPLX_API_KEY"):
                 logging.info("Enabling and adding web search tool.")
                 # We instantiate the tool using the class from websearch_code.py
-                websearch_tool = TavilyWebSearchTool(
+                websearch_tool = PerplexityWebSearchTool(
                     max_results=5, 
-                    search_depth='advanced', 
-                    include_favicon=True, 
-                    include_images=True
+                    model="sonar", 
+                    include_links=True
                 ).get_tool()
                 self.tools.append(websearch_tool)
             else:
-                logging.warning("Cannot enable web search: TAVILY_API_KEY is not set.")
+                logging.warning("Cannot enable web search: PPLX_API_KEY is not set.")
                 self.config.web_search_enabled = False # Ensure config reflects reality
 
         elif not self.config.web_search_enabled and websearch_tool_present:
             logging.info("Disabling and removing web search tool.")
-            self.tools = [tool for tool in self.tools if tool.name != 'tavily_search_results_json']
+            self.tools = [tool for tool in self.tools if tool.name != 'perplexity_search']
 
         # CRITICAL: Re-create the tool map and re-bind the tools to the LLM
         self.tool_map = {tool.name: tool for tool in self.tools}

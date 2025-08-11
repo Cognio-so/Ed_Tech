@@ -324,7 +324,7 @@ def main():
         web_search_enabled = st.toggle(
             "🌐 Enable Web Search",
             value=st.session_state.web_search_enabled,
-            help="Allow the tutor to search the web. Requires a TAVILY_API_KEY."
+            help="Allow the tutor to search the web. Requires a PPLX_API_KEY."
         )
         
 

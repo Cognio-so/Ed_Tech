@@ -8,8 +8,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 
-# Import from your websearch module
-from websearch_code import TavilyWebSearchTool
+# Import from your websearch module (using the new Perplexity search)
+from websearch_code import PerplexityWebSearchTool
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -68,6 +68,7 @@ You MUST structure your output according to the requested "{content_type}". Adhe
 **Your Task:**
 Please generate the requested "{content_type}" now. You MUST strictly adhere to all configurations and structural requirements detailed above. Based on the generated content, you MUST determine and specify an appropriate duration (e.g., 45 minutes, 1 hour). The generated content must be **exceptionally detailed, containing the complete and unabridged text and materials, making it directly usable by a teacher with absolutely no further writing or content creation required.**
 """
+
 def _get_choice_from_user(options: list[str], prompt_text: str, default: str | None = None) -> str:
     """
     A robust helper function to get a choice from a list of options from the user.
@@ -228,7 +229,8 @@ async def run_generation_pipeline_async(config: dict):
     if config.get("web_search_enabled", True):
         logger.info("Web search is enabled. Fetching latest content...")
         try:
-            search_tool = TavilyWebSearchTool(max_results=5, search_depth='advanced')
+            # Updated to use Perplexity
+            search_tool = PerplexityWebSearchTool(max_results=5, model="sonar")
             search_query = (
                 f"Teaching resources and ideas for a {config['grade']} {config['subject']} "
                 f"{config['content_type']} on '{config['lesson_topic']}'"
@@ -243,6 +245,8 @@ async def run_generation_pipeline_async(config: dict):
 
             if results:
                 web_context = "Web search has been performed. Use the following latest information and source URLs to enrich your content:\n\n"
+                for result in results:
+                    web_context += result["content"] + "\n\n"
                 logger.info("Web search completed and context created with results.")
             else:
                 web_context = "Web search was enabled but returned no relevant results. Proceed with general knowledge."
@@ -270,8 +274,8 @@ async def run_generation_pipeline_async(config: dict):
         raise
 
 if __name__ == "__main__":
-    if not os.getenv("OPENAI_API_KEY") or not os.getenv("TAVILY_API_KEY"):
-        print("FATAL ERROR: Make sure you have created a .env file with your OPENAI_API_KEY and TAVILY_API_KEY.")
+    if not os.getenv("OPENAI_API_KEY") or not os.getenv("PPLX_API_KEY"):
+        print("FATAL ERROR: Make sure you have created a .env file with your OPENAI_API_KEY and PPLX_API_KEY.")
     else:
         user_config = get_user_input()
         # To see the output in the terminal, we need to print the returned response

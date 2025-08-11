@@ -9,7 +9,7 @@ export async function GET(request) {
 
     await connectDB();
 
-    const content = await Content.find({ userId: userId }).sort({ createdAt: -1 });
+    const content = await Content.find({ clerkId: userId }).sort({ createdAt: -1 });
     return NextResponse.json({ content });
   } catch (error) {
     console.error('Get content error:', error);
@@ -36,7 +36,7 @@ export async function DELETE(request) {
     }
     
     await connectDB();
-    const result = await Content.findOneAndDelete({ _id: id, userId: userId });
+    const result = await Content.findOneAndDelete({ _id: id, clerkId: userId });
 
     if (!result) {
         return NextResponse.json({ error: 'Content not found or you do not have permission to delete it.' }, { status: 404 });

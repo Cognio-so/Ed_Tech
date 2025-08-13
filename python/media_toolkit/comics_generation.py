@@ -37,7 +37,7 @@ def get_user_input():
 
 def create_comical_story_prompt(instructions, student_class, num_panels, language):
     """
-    Uses GPT-4o to turn the user's instructions into a series of detailed prompts for DALL-E 3,
+    Uses GPT-4o to turn the user's instructions into a series of detailed prompts for GPT Image 1,
     based on the specified number of panels and target audience and language.
     """
     print("\nTurning your idea into a fun comic story...")
@@ -52,7 +52,7 @@ def create_comical_story_prompt(instructions, student_class, num_panels, languag
                         "Your task is to take a user's topic and create a fun, educational comic story. "
                         "The story should be tailored for a specific grade level and have a specific number of panels, as requested by the user. "
                         f"Generate all dialogue and narrative text in {language}. "
-                        "For each panel, you must provide a single, detailed 'Panel_Prompt' for an image generation model (DALL-E 3). "
+                        "For each panel, you must provide a single, detailed 'Panel_Prompt' for an image generation model (gpt-image-1). "
                         "This prompt must describe the entire scene, the characters, their actions, and include the exact dialogue or narrative text that should appear in speech bubbles or captions within the image. "
                         "The language and complexity of the topic should be appropriate for the target students. "
                         f"Ensure the visual style is described as fun, kid-friendly, and colorful. based on {student_class} class students "

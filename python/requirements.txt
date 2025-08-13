@@ -26,3 +26,6 @@ langgraph
 langsmith
 python-multipart
 langchain_perplexity
+sounddevice
+silero_vad
+pyaudio

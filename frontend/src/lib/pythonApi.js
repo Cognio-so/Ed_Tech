@@ -6,10 +6,12 @@ class PythonApiClient {
 
   async makeRequest(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+    const isFormData = (typeof FormData !== 'undefined') && options.body instanceof FormData;
+    const baseHeaders = isFormData ? {} : { 'Content-Type': 'application/json' };
     const config = {
       headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
+        ...baseHeaders,
+        ...(options.headers || {}),
       },
       ...options,
     };
@@ -53,12 +55,18 @@ class PythonApiClient {
     const selectedTypes = this.getSelectedQuestionTypes(assessmentData.questionTypes);
     const questionDistribution = this.distributeQuestions(parseInt(assessmentData.numQuestions), selectedTypes);
     
+    // Map the assessment_type to assessment_types for the backend
+    const assessmentTypes = selectedTypes.length === 1 
+      ? this.mapSingleQuestionType(selectedTypes[0])
+      : selectedTypes.map(type => this.mapSingleQuestionType(type)).join(', ');
+    
     const pythonSchema = {
       test_title: assessmentData.title,
       grade_level: assessmentData.grade,
       subject: assessmentData.subject,
       topic: assessmentData.topic,
       assessment_type: selectedTypes.length === 1 ? this.mapSingleQuestionType(selectedTypes[0]) : 'Mixed',
+      assessment_types: assessmentTypes, // Add this line to fix the error
       question_types: selectedTypes,
       question_distribution: questionDistribution,
       test_duration: `${assessmentData.duration} minutes`,
@@ -66,7 +74,8 @@ class PythonApiClient {
       difficulty_level: assessmentData.difficulty,
       user_prompt: this.buildUserPrompt(assessmentData),
       learning_objectives: assessmentData.learningObjectives || '',
-      anxiety_triggers: assessmentData.anxietyTriggers || ''
+      anxiety_triggers: assessmentData.anxietyTriggers || '',
+      language: assessmentData.language || 'English',
     };
 
     console.log('Sending assessment request:', pythonSchema);
@@ -83,6 +92,9 @@ class PythonApiClient {
     if (contentData.adaptiveLevel) additional_ai_options.push('adaptive difficulty');
     if (contentData.includeAssessment) additional_ai_options.push('include assessment');
     if (contentData.multimediaSuggestions) additional_ai_options.push('multimedia suggestion');
+    
+    // Add slide generation option
+    if (contentData.generateSlides) additional_ai_options.push('generate slides');
 
     const pythonSchema = {
       content_type: contentData.contentType.replace('-', ' '), // "lesson plan" | "worksheet" | "presentation" | "quiz"
@@ -94,8 +106,9 @@ class PythonApiClient {
       // allow both old/new forms; backend accepts both via regex
       instructional_depth: contentData.instructionalDepth || 'standard',     // e.g., 'standard' | 'basic' | 'advanced' | 'low' | 'high'
       content_version: contentData.contentVersion || 'standard',             // e.g., 'standard' | 'simplified' | 'enriched' | 'low' | 'high'
-      web_search_enabled: contentData.webSearchEnabled || true,
+      web_search_enabled: contentData.webSearchEnabled !== false,
       additional_ai_options: additional_ai_options.length ? additional_ai_options : undefined,
+      language: contentData.language || 'English', // Always include language parameter with English default
     };
 
     console.log('Sending content request:', pythonSchema);
@@ -118,6 +131,24 @@ class PythonApiClient {
     };
 
     console.log('Sending presentation request:', pythonSchema);
+    return this.makeRequest('/presentation_endpoint', {
+      method: 'POST',
+      body: JSON.stringify(pythonSchema)
+    });
+  }
+
+  // NEW: Slide generation from content endpoint
+  async generateSlidesFromContent(contentData) {
+    const pythonSchema = {
+      plain_text: contentData.content,
+      custom_user_instructions: `Generate presentation slides based on this content for ${contentData.topic}`,
+      length: parseInt(contentData.slideCount) || 10,
+      language: contentData.language === 'Arabic' ? 'ARABIC' : 'ENGLISH',
+      fetch_images: true,
+      verbosity: 'standard'
+    };
+
+    console.log('Sending slides from content request:', pythonSchema);
     return this.makeRequest('/presentation_endpoint', {
       method: 'POST',
       body: JSON.stringify(pythonSchema)
@@ -226,6 +257,7 @@ class PythonApiClient {
       subject: imageData.subject,
       difficulty_flag: (imageData.difficultyFlag ? 'true' : 'false'),
       instructions: imageData.instructions,
+      language: imageData.language || 'English', // Add language parameter with English default
     };
 
     console.log('Sending image generation request:', pythonSchema);
@@ -261,6 +293,7 @@ class PythonApiClient {
       instructions: comicsData.instructions,
       grade_level: comicsData.gradeLevel,
       num_panels: parseInt(comicsData.numPanels),
+      language: comicsData.language || 'English', // Add language parameter with English default
     };
     return fetch(url, {
       method: 'POST',
@@ -268,6 +301,7 @@ class PythonApiClient {
       body: JSON.stringify(payload),
     });
   }
+
 }
 
 export default new PythonApiClient(); 

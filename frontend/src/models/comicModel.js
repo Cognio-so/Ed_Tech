@@ -18,6 +18,7 @@ const comicSchema = new mongoose.Schema(
     instructions: { type: String, required: true },
     gradeLevel: { type: String, required: true },
     numPanels: { type: Number, required: true },
+    language: { type: String, default: "English" }, // Add language field
     panels: { type: [panelSchema], default: [] },
     images: { type: [String], default: [] }, // quick access to panel URLs
     status: { type: String, default: "success" },

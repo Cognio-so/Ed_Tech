@@ -18,9 +18,10 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  Zap,
   Check,
   Brain,
+  PresentationIcon,
+  HelpCircle, // Replace Quiz with HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,11 +52,36 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MarkdownStyles } from "@/components/chat/Markdown";
+
+const subjects = [
+  { id: 'math', title: 'Math' },
+  { id: 'science', title: 'Science' },
+  { id: 'history', title: 'History' },
+  { id: 'english', title: 'English' },
+  { id: 'social-studies', title: 'Social Studies' },
+  { id: 'art', title: 'Art' },
+  { id: 'music', title: 'Music' },
+  { id: 'physical-education', title: 'Physical Education' },
+  { id: 'foreign-languages', title: 'Foreign Languages' },
+  { id: 'computer-science', title: 'Computer Science' },
+  { id: 'business', title: 'Business' },
+  { id: 'health', title: 'Health' },
+];
+
+const grades = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+const contentTypes = [
+  { id: 'lesson-plan', title: 'Lesson Plan', icon: PenTool, description: 'Create a lesson plan for a specific topic' },
+  { id: 'worksheet', title: 'Worksheet', icon: FileText, description: 'Create a worksheet for a specific topic' },
+  { id: 'quiz', title: 'Quiz', icon: HelpCircle, description: 'Create a quiz for a specific topic' }, // Use HelpCircle instead of Quiz
+  { id: 'presentation', title: 'Presentation', icon: PresentationIcon, description: 'Create a presentation for a specific topic' },
+];
+
 
 export default function ContentGeneration() {
   const [selectedGrade, setSelectedGrade] = useState("");
@@ -66,6 +92,7 @@ export default function ContentGeneration() {
   const [adaptiveLevel, setAdaptiveLevel] = useState(false);
   const [includeAssessment, setIncludeAssessment] = useState(false);
   const [multimediaSuggestions, setMultimediaSuggestions] = useState(false);
+  const [generateSlides, setGenerateSlides] = useState(false);
   const [instructionalDepth, setInstructionalDepth] = useState("standard");
   const [contentVersion, setContentVersion] = useState("standard");
   const [contentType, setContentType] = useState("lesson-plan");
@@ -73,60 +100,17 @@ export default function ContentGeneration() {
   const [generatedContent, setGeneratedContent] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [savedContent, setSavedContent] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isExported, setIsExported] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const subjects = [
-    "Mathematics",
-    "Science", 
-    "English",
-    "History",
-    "Geography",
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "Computer Science",
-    "Art",
-  ];
+  const [language, setLanguage] = useState('English');
+  const [isGeneratingSlides, setIsGeneratingSlides] = useState(false);
+  const [slideDialogOpen, setSlideDialogOpen] = useState(false);
+  const [slideCount, setSlideCount] = useState(10);
+  const [presentationResult, setPresentationResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const grades = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
-
-  const contentTypes = [
-    {
-      id: "lesson-plan",
-      title: "Lesson Plan",
-      description: "Comprehensive lesson plans with activities and assessments",
-      icon: FileText,
-      color: "bg-gradient-to-br from-blue-500 to-blue-600",
-    },
-    {
-      id: "worksheet",
-      title: "Worksheet",
-      description: "Practice exercises and problem sets",
-      icon: PenTool,
-      color: "bg-gradient-to-br from-green-500 to-green-600",
-    },
-    {
-      id: "presentation",
-      title: "Presentation",
-      description: "Slide decks for classroom instruction",
-      icon: BookOpen,
-      color: "bg-gradient-to-br from-yellow-500 to-yellow-600",
-    },
-    {
-      id: "quiz",
-      title: "Quiz",
-      description: "Assessment questions and rubrics",
-      icon: Target,
-      color: "bg-gradient-to-br from-red-500 to-red-600",
-    },
-  ];
-
-  // Fetch saved content on component mount
-  useEffect(() => {
-    fetchSavedContent();
-  }, []);
+  
 
   const fetchSavedContent = async () => {
     try {
@@ -144,6 +128,10 @@ export default function ContentGeneration() {
     }
   };
 
+  useEffect(() => {
+    fetchSavedContent();
+  }, []);
+
   const handleGenerate = async () => {
     if (!selectedGrade || !selectedSubject || !topic || !contentType) {
       toast.error('Please fill in all required fields');
@@ -152,7 +140,7 @@ export default function ContentGeneration() {
 
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/content/generate', {
+      const response = await fetch('/api/content/generate', { // Changed from '/api/content' to '/api/content/generate'
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -166,20 +154,22 @@ export default function ContentGeneration() {
           adaptiveLevel,
           includeAssessment,
           multimediaSuggestions,
+          generateSlides,
+          language,
           instructionalDepth,
           contentVersion,
           contentType,
         }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (response.ok) { // Changed from response.status === 200 to response.ok
+        const data = await response.json();
         setGeneratedContent(data.content);
-        await fetchSavedContent(); // Refresh saved content list
+        await fetchSavedContent(); 
         toast.success('Content generated successfully using AI!');
       } else {
-        toast.error(data.error || 'Failed to generate content');
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to generate content');
       }
     } catch (error) {
       console.error('Generation error:', error);
@@ -215,25 +205,53 @@ export default function ContentGeneration() {
     }, 2000);
     };
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
     if (!generatedContent) {
       toast.error('No content to save');
       return;
     }
-
+    e.preventDefault(); 
     try {
-      // Content is automatically saved when generated, just refresh the list
-      await fetchSavedContent();
+      const response = await fetch('/api/content/generate', { // Changed from '/api/content' to '/api/content/generate'
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+        content: generatedContent,
+        contentType,
+        subject: selectedSubject,
+        grade: selectedGrade,
+        topic,
+        objectives,
+        emotionalFlags,
+        adaptiveLevel,
+        includeAssessment,
+        multimediaSuggestions,
+        generateSlides,
+        language,
+        instructionalDepth,
+        contentVersion,
+      }),
+    });
+
+    if (response.ok) { // Changed from response.status === 200 to response.ok
+      const data = await response.json();
+      await fetchSavedContent();  
       toast.success('Content saved successfully!');
       setIsSaved(true);
       setTimeout(() => {
         setIsSaved(false);
       }, 2000);
-    } catch (error) {
-      console.error('Save error:', error);
-      toast.error('Failed to save content');
+    } else {
+      const errorData = await response.json();
+      toast.error(errorData.error || 'Failed to save content');
     }
-  };
+  } catch (error) {
+    console.error('Save error:', error);
+    toast.error('Failed to save content');
+  }
+};
 
   const handleViewContent = (content) => {
     setGeneratedContent(content.generatedContent);
@@ -245,7 +263,7 @@ export default function ContentGeneration() {
         method: 'DELETE',
       });
 
-      if (response.ok) {
+      if (response.status === 200) {
         setSavedContent(savedContent.filter(item => item._id !== contentId));
         toast.success('Content deleted successfully!');
       } else {
@@ -256,6 +274,58 @@ export default function ContentGeneration() {
       toast.error('Failed to delete content');
     }
   };
+
+ const handleGenerateSlides = async () => {
+  if (!generatedContent) {
+    toast.error('No content to generate slides from');
+    return;
+  }
+
+  setIsGeneratingSlides(true);
+  try {
+    const response = await fetch('/api/content/generate-slides', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: generatedContent,
+        title: `${selectedSubject} - ${topic}`,
+        topic: topic,
+        language: language,
+        slideCount: slideCount
+      }),
+    });
+
+    const data = await response.json();
+    console.log('Slides API Response:', data); // Debug log
+
+    if (response.ok) {
+      if (data && data.presentation) {
+        setPresentationResult({
+          presentationUrl: data.presentation.presentationUrl || null,
+          downloadUrl: data.presentation.downloadUrl || data.presentation.presentationUrl || null,
+          slideCount: data.presentation.slideCount || slideCount,
+          status: data.presentation.status || 'SUCCESS',
+          errorMessage: data.presentation.errorMessage || null
+        });
+        toast.success('Slides generated successfully!');
+      } else {
+        console.error('Invalid response structure:', data);
+        toast.error('Invalid response from server');
+      }
+    } else {
+      const errorMessage = data.error || 'Failed to generate slides';
+      console.error('API Error:', errorMessage);
+      toast.error(errorMessage);
+    }
+  } catch (error) {
+    console.error('Slide generation error:', error);
+    toast.error('Failed to generate slides');
+  } finally {
+    setIsGeneratingSlides(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
@@ -369,8 +439,8 @@ export default function ContentGeneration() {
                           </SelectTrigger>
                           <SelectContent>
                             {subjects.map((subject) => (
-                              <SelectItem key={subject} value={subject}>
-                                {subject}
+                              <SelectItem key={subject.id} value={subject.id}>
+                                {subject.title}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -456,6 +526,19 @@ export default function ContentGeneration() {
                                   onCheckedChange={setMultimediaSuggestions}
                                 />
                                 <Label htmlFor="multimediaSuggestions" className="text-sm">Multimedia Suggestions</Label>
+                              </div>
+                                                            <div className="space-y-2">
+                                <Label htmlFor="language" className="text-sm font-medium">Language</Label>
+                                <Select value={language} onValueChange={setLanguage}>
+                                  <SelectTrigger className="h-11">
+                                    <SelectValue placeholder="Select language..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+         
+                           <SelectItem value="English">English</SelectItem>
+                                    <SelectItem value="Arabic">Arabic</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </div>
                           </div>
@@ -558,6 +641,17 @@ export default function ContentGeneration() {
                         </div>
                       </div>
                     </CardContent>
+                    {contentType === "presentation" && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlideDialogOpen(true)} 
+                        className="h-9 bg-yellow-500 hover:bg-yellow-600 text-white hover:text-white"
+                      >
+                        <PresentationIcon className="h-4 w-4 mr-2" />
+                        Create Slides
+                      </Button>
+                    )}
                   </Card>
                 )}
               </div>
@@ -720,6 +814,110 @@ export default function ContentGeneration() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={slideDialogOpen} onOpenChange={setSlideDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] bg-[#0f172a] text-white p-0">
+          {!presentationResult ? (
+            <>
+              <DialogHeader className="p-6 pb-2">
+                <DialogTitle>Generate PowerPoint Slides</DialogTitle>
+              </DialogHeader>
+              <div className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="slideCount" className="text-white">Number of Slides</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="slideCount"
+                      type="number"
+                      value={slideCount}
+                      onChange={(e) => setSlideCount(parseInt(e.target.value) || 10)}
+                      min={5}
+                      max={30}
+                      className="bg-[#1e293b] border-gray-700 text-white"
+                    />
+                  </div>
+                </div>
+                
+                <DialogFooter className="pt-4">
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setSlideDialogOpen(false)}
+                    className="text-gray-300 hover:text-white hover:bg-gray-700"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleGenerateSlides} 
+                    disabled={isGeneratingSlides}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  >
+                    {isGeneratingSlides ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      'Generate Slides'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </div>
+            </>
+          ) : (
+            <div className="p-6 space-y-6">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <h2 className="text-xl font-semibold">Presentation Ready</h2>
+              </div>
+
+              <div className="bg-[#1e293b] rounded-lg p-4">
+                <h3 className="font-semibold text-lg">{`${selectedSubject} - ${topic}`}</h3>
+                <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
+                  <FileText className="h-4 w-4" />
+                  <span>{slideCount} slides</span>
+                  <span>PPTX Format</span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-lg mb-4">Preview & Actions</h4>
+                <div className="bg-[#1e293b] rounded-lg p-8 text-center aspect-video flex items-center justify-center">
+                  <div className="text-center">
+                    <FileText className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-400">Preview not available. Download to view the presentation.</p>
+                  </div>
+                </div>
+              </div>
+
+              <Button 
+                onClick={() => {
+                  if (presentationResult?.downloadUrl) {
+                    window.open(presentationResult.downloadUrl, '_blank');
+                  }
+                }}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white h-12"
+              >
+                <Download className="h-5 w-5 mr-2" />
+                Download PPTX
+              </Button>
+
+              <div className="text-xs text-gray-400 text-center">
+                Generated with SlideSpeak AI • Supports PowerPoint, Google Slides, and more
+              </div>
+              
+              <div className="border-t border-gray-800 pt-4 flex justify-end">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setSlideDialogOpen(false)}
+                  className="text-white"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

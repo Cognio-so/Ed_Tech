@@ -18,6 +18,7 @@ export async function POST(request) {
       subject: body.subject,
       difficultyFlag: !!body.difficultyFlag,
       instructions: body.instructions,
+      language: body.language || 'English',
     });
 
     if (!pythonResult || !pythonResult.image_url) {

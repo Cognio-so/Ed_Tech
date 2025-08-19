@@ -79,9 +79,18 @@ export function CarouselNext({ className, onClick, disabled }) {
 }
 
 // Enhanced controller with better navigation and indicators
-export function CarouselWithControls({ items, renderItem, className, showIndicators = true }) {
+export function CarouselWithControls({ items = [], renderItem, className, showIndicators = true }) {
   const ref = useRef(null);
   const [index, setIndex] = useState(0);
+
+  // Safety check for items
+  if (!items || !Array.isArray(items)) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        <p>No items to display</p>
+      </div>
+    );
+  }
 
   const scrollTo = (i) => {
     if (!ref.current || i < 0 || i >= items.length) return;
@@ -107,7 +116,7 @@ export function CarouselWithControls({ items, renderItem, className, showIndicat
   // Handle scroll events to update current index
   useEffect(() => {
     const container = ref.current;
-    if (!container) return;
+    if (!container || items.length === 0) return;
 
     const handleScroll = () => {
       const itemWidth = container.scrollWidth / items.length;

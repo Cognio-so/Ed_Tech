@@ -33,6 +33,10 @@ const contentSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    generateSlides: {
+        type: Boolean,
+        default: false,
+    },
     instructionalDepth: {
         type: String,
         default: 'standard',
@@ -48,6 +52,10 @@ const contentSchema = new mongoose.Schema({
     objectives: {
         type: String,
         default: '',
+    },
+    language: {
+        type: String,
+        default: 'English',
     },
     generatedContent: {
         type: String,

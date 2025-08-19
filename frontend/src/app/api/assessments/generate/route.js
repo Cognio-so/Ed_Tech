@@ -17,7 +17,8 @@ export async function POST(request) {
     
     console.log('Python API result:', result);
     
-    const { questions, solutions } = parseAssessmentContent(result.assessment, body.questionTypes);
+    // Pass the question distribution to the parsing function
+    const { questions, solutions } = parseAssessmentContent(result.assessment, body.questionDistribution);
     
     // Include all required fields from the schema
     return NextResponse.json({
@@ -41,7 +42,7 @@ export async function POST(request) {
   }
 }
 
-function parseAssessmentContent(content, selectedQuestionTypes = {}) {
+function parseAssessmentContent(content, questionDistribution = {}) {
     const questions = [];
     const solutions = [];
     const answerKey = {};
@@ -97,7 +98,7 @@ function parseAssessmentContent(content, selectedQuestionTypes = {}) {
             currentQuestion = {
                 id: questionNumber,
                 question: questionText,
-                type: determineQuestionType(explicitType, selectedQuestionTypes),
+                type: null, // Will be determined after collecting options
                 options: [],
                 correctAnswer: answerKey[questionNumber] || '',
                 points: 1
@@ -114,12 +115,15 @@ function parseAssessmentContent(content, selectedQuestionTypes = {}) {
     if (currentQuestion) {
         questions.push(currentQuestion);
     }
+
+    // Now determine question types based on the distribution and content
+    const questionTypes = determineQuestionTypesFromDistribution(questions, questionDistribution);
     
-    questions.forEach(q => {
+    questions.forEach((q, index) => {
+        q.type = questionTypes[index];
+        
         if (q.type === 'true_false' && q.options.length === 0) {
             q.options = ['True', 'False'];
-        } else if (q.options.length === 0 && q.type !== 'true_false') {
-            q.type = 'short_answer';
         }
 
         const answerFromKey = answerKey[q.id];
@@ -136,25 +140,54 @@ function parseAssessmentContent(content, selectedQuestionTypes = {}) {
     });
     
     console.log(`[FIXED PARSING] Parsed ${questions.length} questions and ${solutions.length} solutions.`);
+    console.log(`Question types assigned:`, questionTypes);
     
     return { questions, solutions };
 }
 
-function determineQuestionType(explicitType, selectedQuestionTypes) {
-  if (explicitType) {
-    const typeMap = {
-      'mcq': 'mcq', 'mc': 'mcq', 'multiple choice': 'mcq',
-      't/f': 'true_false', 'true/false': 'true_false', 'tf': 'true_false',
-      'sa': 'short_answer', 'short answer': 'short_answer', 'short': 'short_answer'
-    };
-    return typeMap[explicitType] || 'mcq';
-  }
-  
-  if (selectedQuestionTypes) {
-    if (selectedQuestionTypes.mcq) return 'mcq';
-    if (selectedQuestionTypes.true_false) return 'true_false';
-    if (selectedQuestionTypes.short_answer) return 'short_answer';
-  }
-  
-  return 'mcq';
+function determineQuestionTypesFromDistribution(questions, questionDistribution) {
+    const types = [];
+    let currentIndex = 0;
+    
+    // Create a flat array of question types based on distribution
+    const typeSequence = [];
+    
+    if (questionDistribution.mcq) {
+        for (let i = 0; i < questionDistribution.mcq; i++) {
+            typeSequence.push('mcq');
+        }
+    }
+    
+    if (questionDistribution.true_false) {
+        for (let i = 0; i < questionDistribution.true_false; i++) {
+            typeSequence.push('true_false');
+        }
+    }
+    
+    if (questionDistribution.short_answer) {
+        for (let i = 0; i < questionDistribution.short_answer; i++) {
+            typeSequence.push('short_answer');
+        }
+    }
+    
+    // Assign types to questions based on sequence
+    for (let i = 0; i < questions.length; i++) {
+        if (i < typeSequence.length) {
+            types.push(typeSequence[i]);
+        } else {
+            // Fallback: determine type from content
+            const q = questions[i];
+            const lowerText = q.question.toLowerCase();
+            
+            if (lowerText.includes('true or false') || lowerText.includes('true/false')) {
+                types.push('true_false');
+            } else if (q.options.length >= 2) {
+                types.push('mcq');
+            } else {
+                types.push('short_answer');
+            }
+        }
+    }
+    
+    return types;
 } 

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -200,18 +199,6 @@ const WebContentCurator = () => {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div>
-              <Label>Max Results: {form.maxResults}</Label>
-              <Slider
-                value={[form.maxResults]}
-                onValueChange={(value) => setForm({ ...form, maxResults: value[0] })}
-                min={5}
-                max={50}
-                step={5}
-                className="mt-2"
-              />
             </div>
           </div>
         </div>

@@ -21,7 +21,9 @@ Please adhere to the following specifications:
 - **Grade Level:** {grade_level}
 - **Subject:** {subject}
 - **Topic:** {topic}
-- **Assessment Types:** {assessment_types}
+- **Assessment Type:** {assessment_type}
+- **Question Types:** {question_types}
+- **Question Distribution:** {question_distribution}
 - **Language:** {language}
 - **Test Duration:** {test_duration}
 - **Number of Questions:** {number_of_questions}
@@ -31,12 +33,12 @@ Please adhere to the following specifications:
 **Crucial Instructions:**
 - **Priority of Instructions:** In the event of a conflict between the `User-Specific Instructions` and the rules below, you **must** prioritize these Crucial Instructions to ensure the output format and integrity are maintained.
 - **Language of Generation:** All questions and answers must be generated *only* in the specified `{language}`.
-- **Strictly Adhere to Assessment Types:** You must generate questions that match the specified `{assessment_types}`. If multiple types are requested (e.g., 'MCQ, True or False'), create a mix of these question formats, ensuring the total count equals `{number_of_questions}`. Do not mix formats within a single question.
+- **Strictly Adhere to Assessment Type:** You must generate questions that match the specified `{assessment_type}`. If the assessment type is "Mixed", you MUST follow the exact question distribution provided in `{question_distribution}`. For example, if the distribution is {{"mcq": 2, "true_false": 2, "short_answer": 2}}, you must generate exactly 2 MCQ questions, 2 True/False questions, and 2 Short Answer questions. Do not mix formats within a single question.
 - **Separate Questions and Answers:** The entire output must be structured into two distinct parts: the questions first, followed by a clearly marked answer key.
 
 **Output Formatting Rules:**
 1.  **Generate Questions:**
-    - First, generate the exact number of questions requested.
+    - First, generate the exact number of questions requested following the distribution if it's a mixed assessment.
     - For 'MCQ' type, provide four options labeled A, B, C, and D.
     - For 'True or False' type, provide a clear statement.
     - For 'Short Answer' type, ask a clear question.

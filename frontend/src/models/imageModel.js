@@ -29,6 +29,10 @@ const imageSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    language: {
+        type: String,
+        default: 'English',
+    },
     imageUrl: {
         type: String,
         required: true,

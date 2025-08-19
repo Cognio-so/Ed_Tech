@@ -35,7 +35,8 @@ export default function AssessmentBuilderPage() {
     numQuestions: "10",
     questionTypes: { mcq: true, true_false: false, short_answer: false },
     anxietyTriggers: "",
-    customPrompt: ""
+    customPrompt: "",
+    language: "English", // Add language field with default value
   });
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
   const [generatedSolutions, setGeneratedSolutions] = useState([]);
@@ -45,6 +46,11 @@ export default function AssessmentBuilderPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [questionDistribution, setQuestionDistribution] = useState({
+    mcq: 0,
+    true_false: 0,
+    short_answer: 0
+  });
 
   // Fetch assessments on component mount
   useEffect(() => {
@@ -90,6 +96,23 @@ export default function AssessmentBuilderPage() {
     }));
   };
 
+  const handleDistributionChange = (type, value) => {
+    const numValue = parseInt(value) || 0;
+    setQuestionDistribution(prev => ({
+      ...prev,
+      [type]: numValue
+    }));
+    
+    // Update total questions
+    const total = Object.entries({...questionDistribution, [type]: numValue})
+      .reduce((sum, [_, count]) => sum + count, 0);
+    
+    setForm(prev => ({
+      ...prev,
+      numQuestions: total.toString()
+    }));
+  };
+
   const validateForm = () => {
     if (!form.title || !form.subject || !form.grade || !form.topic) {
       setFormError("Please fill in all required fields");
@@ -115,7 +138,15 @@ export default function AssessmentBuilderPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          questionDistribution: Object.entries(form.questionTypes)
+            .filter(([_, enabled]) => enabled)
+            .reduce((dist, [type]) => ({
+              ...dist,
+              [type]: questionDistribution[type]
+            }), {})
+        }),
       });
 
       const data = await response.json();
@@ -177,7 +208,8 @@ export default function AssessmentBuilderPage() {
           numQuestions: "10",
           questionTypes: { mcq: true, true_false: false, short_answer: false },
           anxietyTriggers: "",
-          customPrompt: ""
+          customPrompt: "",
+          language: "English", // Reset language field
         });
         setGeneratedQuestions([]);
         setGeneratedSolutions([]);
@@ -511,6 +543,56 @@ export default function AssessmentBuilderPage() {
                   </div>
                 </div>
 
+                {Object.entries(form.questionTypes).some(([_, enabled]) => enabled) && (
+                  <div className="mt-4 space-y-3">
+                    <Label className="text-sm font-medium">Question Distribution</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {form.questionTypes.mcq && (
+                        <div className="space-y-2">
+                          <Label htmlFor="mcq-count" className="text-xs">Multiple Choice</Label>
+                          <Input
+                            id="mcq-count"
+                            type="number"
+                            min="0"
+                            value={questionDistribution.mcq}
+                            onChange={(e) => handleDistributionChange('mcq', e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                      )}
+                      {form.questionTypes.true_false && (
+                        <div className="space-y-2">
+                          <Label htmlFor="tf-count" className="text-xs">True/False</Label>
+                          <Input
+                            id="tf-count"
+                            type="number"
+                            min="0"
+                            value={questionDistribution.true_false}
+                            onChange={(e) => handleDistributionChange('true_false', e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                      )}
+                      {form.questionTypes.short_answer && (
+                        <div className="space-y-2">
+                          <Label htmlFor="sa-count" className="text-xs">Short Answer</Label>
+                          <Input
+                            id="sa-count"
+                            type="number"
+                            min="0"
+                            value={questionDistribution.short_answer}
+                            onChange={(e) => handleDistributionChange('short_answer', e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Total questions: {Object.values(questionDistribution).reduce((sum, count) => sum + count, 0)}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="numQuestions" className="text-sm font-medium">Number of Questions</Label>
@@ -546,6 +628,19 @@ export default function AssessmentBuilderPage() {
                     className="resize-none"
                     rows={3}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="language" className="text-sm font-medium">Language</Label>
+                  <Select value={form.language} onValueChange={(v) => handleSelectChange('language', v)}>
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="English">English</SelectItem>
+                      <SelectItem value="Arabic">Arabic</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <Button 

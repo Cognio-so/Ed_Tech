@@ -17,6 +17,7 @@ const ImageGenerator = () => {
     visualType: "",
     instructions: "",
     difficultyFlag: false,
+    language: "English",
   })
   const [isGenerating, setIsGenerating] = useState(false)
   const [imageUrl, setImageUrl] = useState(null)
@@ -52,6 +53,7 @@ const ImageGenerator = () => {
           visualType: form.visualType, // image | diagram | chart
           instructions: form.instructions || form.topic,
           difficultyFlag: form.difficultyFlag,
+          language: form.language,
         }),
       })
       const data = await res.json()
@@ -170,6 +172,18 @@ const ImageGenerator = () => {
                   <SelectItem value="image">Image</SelectItem>
                   <SelectItem value="diagram">Diagram</SelectItem>
                   <SelectItem value="chart">Chart</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div> 
+              <Label htmlFor="language">Language</Label>
+              <Select value={form.language} onValueChange={(value) => setForm({ ...form, language: value })}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="English">English</SelectItem>
+                  <SelectItem value="Arabic">Arabic</SelectItem>
                 </SelectContent>
               </Select>
             </div>

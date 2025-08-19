@@ -40,6 +40,24 @@ export async function POST(request) {
 
     const result = pythonResponse.presentation;
     
+    // Debug: Log the entire response structure
+    console.log('Full Python response:', JSON.stringify(pythonResponse, null, 2));
+    console.log('Result object:', JSON.stringify(result, null, 2));
+    
+    // Extract the URL from the correct location in the response
+    // Based on the terminal output, the URL is in task_info.url
+    const presentationUrl = result.task_info?.url || result.task_result?.url || result.url || null;
+    
+    console.log('Extracted presentation URL:', presentationUrl);
+    console.log('task_info?.url:', result.task_info?.url);
+    console.log('task_result?.url:', result.task_result?.url);
+    console.log('result.url:', result.url);
+    
+    if (!presentationUrl) {
+      console.error('No presentation URL found in response');
+      throw new Error('No presentation URL found in response');
+    }
+    
     // Save the presentation to the database
     await connectDB();
     const savedPresentation = await Presentation.create({
@@ -51,20 +69,20 @@ export async function POST(request) {
       language: presentationData.language,
       includeImages: presentationData.includeImages,
       verbosity: presentationData.verbosity,
-      taskId: result.taskId || 'unknown',
-      status: result.status || 'SUCCESS',
-      presentationUrl: result.presentationUrl || null,
-      downloadUrl: result.downloadUrl || null,
+      taskId: result.task_id || result.taskId || 'unknown',
+      status: result.task_status || result.status || 'SUCCESS',
+      presentationUrl: presentationUrl,
+      downloadUrl: presentationUrl, // Use the same URL for download
       errorMessage: result.errorMessage || null,
     });
 
     return NextResponse.json({
       success: true,
       presentation: {
-        presentationUrl: result.presentationUrl,
-        downloadUrl: result.downloadUrl,
+        presentationUrl: presentationUrl,
+        downloadUrl: presentationUrl,
         slideCount: presentationData.slideCount,
-        status: result.status || 'SUCCESS',
+        status: result.task_status || result.status || 'SUCCESS',
         errorMessage: result.errorMessage,
         title: title
       },

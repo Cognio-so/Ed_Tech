@@ -58,6 +58,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MarkdownStyles } from "@/components/chat/Markdown";
+import PPTXViewer from "@/components/ui/pptx-viewer";
 
 const subjects = [
   { id: 'math', title: 'Math' },
@@ -302,13 +303,21 @@ export default function ContentGeneration() {
 
     if (response.ok) {
       if (data && data.presentation) {
-        setPresentationResult({
+        // Add detailed debugging
+        console.log('Presentation data:', data.presentation);
+        console.log('Presentation URL:', data.presentation.presentationUrl);
+        console.log('Download URL:', data.presentation.downloadUrl);
+        
+        const result = {
           presentationUrl: data.presentation.presentationUrl || null,
           downloadUrl: data.presentation.downloadUrl || data.presentation.presentationUrl || null,
           slideCount: data.presentation.slideCount || slideCount,
           status: data.presentation.status || 'SUCCESS',
           errorMessage: data.presentation.errorMessage || null
-        });
+        };
+        
+        console.log('Final presentation result:', result);
+        setPresentationResult(result);
         toast.success('Slides generated successfully!');
       } else {
         console.error('Invalid response structure:', data);
@@ -816,15 +825,18 @@ export default function ContentGeneration() {
       </div>
 
       <Dialog open={slideDialogOpen} onOpenChange={setSlideDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] bg-[#0f172a] text-white p-0">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto p-0">
           {!presentationResult ? (
             <>
               <DialogHeader className="p-6 pb-2">
-                <DialogTitle>Generate PowerPoint Slides</DialogTitle>
+                <DialogTitle className="text-xl font-semibold">Generate PowerPoint Slides</DialogTitle>
+                <DialogDescription>
+                  Create a presentation from your generated content
+                </DialogDescription>
               </DialogHeader>
               <div className="p-6 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="slideCount" className="text-white">Number of Slides</Label>
+                  <Label htmlFor="slideCount" className="text-sm font-medium">Number of Slides</Label>
                   <div className="flex items-center gap-2">
                     <Input
                       id="slideCount"
@@ -833,7 +845,7 @@ export default function ContentGeneration() {
                       onChange={(e) => setSlideCount(parseInt(e.target.value) || 10)}
                       min={5}
                       max={30}
-                      className="bg-[#1e293b] border-gray-700 text-white"
+                      className="h-11"
                     />
                   </div>
                 </div>
@@ -842,7 +854,6 @@ export default function ContentGeneration() {
                   <Button 
                     variant="ghost" 
                     onClick={() => setSlideDialogOpen(false)}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700"
                   >
                     Cancel
                   </Button>
@@ -864,57 +875,61 @@ export default function ContentGeneration() {
               </div>
             </>
           ) : (
-            <div className="p-6 space-y-6">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <h2 className="text-xl font-semibold">Presentation Ready</h2>
+            <>
+              <DialogHeader className="p-6 pb-2">
+                <DialogTitle className="text-xl font-semibold">Presentation Ready</DialogTitle>
+                <DialogDescription>
+                  Your presentation has been generated successfully
+                </DialogDescription>
+              </DialogHeader>
+              <div className="p-0">
+                {console.log('PPTXViewer props:', {
+                  presentationUrl: presentationResult.presentationUrl || presentationResult.url,
+                  downloadUrl: presentationResult.downloadUrl || presentationResult.presentationUrl || presentationResult.url,
+                  title: `${selectedSubject} - ${topic}`,
+                  slideCount: presentationResult.slideCount || slideCount,
+                  status: presentationResult.status || 'SUCCESS',
+                  errorMessage: presentationResult.errorMessage || null
+                })}
+                <PPTXViewer
+                  presentationUrl={presentationResult.presentationUrl || presentationResult.url}
+                  downloadUrl={presentationResult.downloadUrl || presentationResult.presentationUrl || presentationResult.url}
+                  title={`${selectedSubject} - ${topic}`}
+                  slideCount={presentationResult.slideCount || slideCount}
+                  status={presentationResult.status || 'SUCCESS'}
+                  errorMessage={presentationResult.errorMessage || null}
+                  onSave={async () => {
+                    try {
+                      const response = await fetch('/api/presentations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          title: `${selectedSubject} - ${topic}`,
+                          topic: topic,
+                          slideCount: presentationResult.slideCount || slideCount,
+                          language: language,
+                          presentationUrl: presentationResult.presentationUrl || presentationResult.url,
+                          downloadUrl: presentationResult.downloadUrl || presentationResult.presentationUrl || presentationResult.url,
+                          status: presentationResult.status || 'SUCCESS',
+                          errorMessage: presentationResult.errorMessage || null
+                        })
+                      });
+                      
+                      if (response.ok) {
+                        toast.success('Presentation saved to library');
+                        setSlideDialogOpen(false);
+                      } else {
+                        toast.error('Failed to save presentation');
+                      }
+                    } catch (error) {
+                      console.error('Save error:', error);
+                      toast.error('Failed to save presentation');
+                    }
+                  }}
+                  isSaving={false}
+                />
               </div>
-
-              <div className="bg-[#1e293b] rounded-lg p-4">
-                <h3 className="font-semibold text-lg">{`${selectedSubject} - ${topic}`}</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
-                  <FileText className="h-4 w-4" />
-                  <span>{slideCount} slides</span>
-                  <span>PPTX Format</span>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-lg mb-4">Preview & Actions</h4>
-                <div className="bg-[#1e293b] rounded-lg p-8 text-center aspect-video flex items-center justify-center">
-                  <div className="text-center">
-                    <FileText className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-                    <p className="text-gray-400">Preview not available. Download to view the presentation.</p>
-                  </div>
-                </div>
-              </div>
-
-              <Button 
-                onClick={() => {
-                  if (presentationResult?.downloadUrl) {
-                    window.open(presentationResult.downloadUrl, '_blank');
-                  }
-                }}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white h-12"
-              >
-                <Download className="h-5 w-5 mr-2" />
-                Download PPTX
-              </Button>
-
-              <div className="text-xs text-gray-400 text-center">
-                Generated with SlideSpeak AI • Supports PowerPoint, Google Slides, and more
-              </div>
-              
-              <div className="border-t border-gray-800 pt-4 flex justify-end">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setSlideDialogOpen(false)}
-                  className="text-white"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

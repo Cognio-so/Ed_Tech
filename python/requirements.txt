@@ -33,3 +33,5 @@ numpy
 torch
 websockets
 python-socketio
+websocket-client
+rank_bm25

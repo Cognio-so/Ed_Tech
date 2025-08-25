@@ -164,7 +164,7 @@ class LocalStorageManager:
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Tutor Chatbot",
+    page_title="AI Assistant for Teachers",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -193,6 +193,11 @@ if "last_uploaded_files" not in st.session_state:
     st.session_state.last_uploaded_files = []
 if "knowledge_base_ready" not in st.session_state:
     st.session_state.knowledge_base_ready = False
+if "teacher_data" not in st.session_state:
+    st.session_state.teacher_data = None
+if "teacher_data_submitted" not in st.session_state:
+    st.session_state.teacher_data_submitted = False
+
 
 # Initialize LocalStorageManager once per session
 if "storage_manager" not in st.session_state:
@@ -222,11 +227,11 @@ def initialize_tutor(force_reinit=False):
 def display_chat_message(role: str, content: str, files: Optional[List[str]] = None):
     """Displays a single chat message with consistent styling."""
     avatar = "🧑‍💼" if role == "user" else "🎓"
-    name = "You" if role == "user" else "AI Tutor"
-    
+    name = "You" if role == "user" else "AI Assistant"
+
     # Define alignment for user vs assistant
     align_class = "user" if role == "user" else "assistant"
-    
+
     with st.container():
         st.markdown(f"""
         <div class="chat-message {align_class}">
@@ -284,7 +289,7 @@ def handle_uploads_and_ingest(uploaded_files):
         logger.error(f"Error during upload/ingest process: {e}", exc_info=True)
         st.error(f"An error occurred while processing files: {str(e)}")
 
-async def get_response_stream_async(query: str, history: List[Dict[str, Any]], image_storage_key: Optional[str] = None, uploaded_files: Optional[List[str]] = None):
+async def get_response_stream_async(query: str, history: List[Dict[str, Any]], image_storage_key: Optional[str] = None, uploaded_files: Optional[List[str]] = None, teaching_data: Optional[Dict[str, Any]] = None):
     """Async generator to get streaming response from the AI tutor."""
     try:
         if not st.session_state.tutor:
@@ -296,7 +301,8 @@ async def get_response_stream_async(query: str, history: List[Dict[str, Any]], i
             history=history,
             image_storage_key=image_storage_key,
             is_knowledge_base_ready=st.session_state.knowledge_base_ready,
-            uploaded_files=uploaded_files
+            uploaded_files=uploaded_files,
+            teaching_data=teaching_data
         ):
             yield chunk
     except Exception as e:
@@ -305,120 +311,217 @@ async def get_response_stream_async(query: str, history: List[Dict[str, Any]], i
 
 def main():
     """Main Streamlit application function."""
-    st.title("🎓 AI Tutor Chatbot")
-    st.markdown("Upload your documents. They are stored locally and auto-deleted in 24 hours.")
+    st.title("🎓 AI Assistant for Teachers")
 
-    if not initialize_tutor():
-        st.error("Tutor initialization failed. Please refresh the page.")
-        return
+    if not st.session_state.teacher_data_submitted:
+        st.header("First, let's set up your teaching session.")
+        with st.form("teacher_details_form"):
+            st.write("This information will help me assist you with data analysis and content enhancement.")
+            teacher_name = st.text_input("What is your name?", placeholder="e.g., Mrs. Davis")
+            student_reports_str = st.text_area(
+                "Paste your student data here (JSON format recommended)",
+                placeholder='''e.g.,
+[
+  {
+    "student_name": "John Doe",
+    "student_id": "JD001",
+    "reports": [
+      {"subject": "Math", "score": 65, "comments": "Struggles with algebra."},
+      {"subject": "History", "score": 88, "comments": "Excellent essay writing."}
+    ]
+  },
+  {
+    "student_name": "Jane Smith",
+    "student_id": "JS002",
+    "reports": [
+      {"subject": "Math", "score": 92, "comments": "Top performer in geometry."},
+      {"subject": "History", "score": 75, "comments": "Needs to elaborate more in answers."}
+    ]
+  }
+]
+                ''',
+                height=300
+            )
+            generated_content_str = st.text_area(
+                "Paste your available teaching content details here (JSON format recommended)",
+                placeholder='''e.g.,
+[{
+  "subject": "History",
+  "topic": "The Roman Empire",
+  "available_materials": [
+    {"type": "reading", "title": "Chapter 5: The Rise of Augustus"},
+    {"type": "video", "title": "Crash Course: The Roman Empire"},
+    {"type": "activity", "title": "Worksheet on Roman Emperors"}
+  ]
+}]
+                ''',
+                height=250
+            )
 
-    with st.sidebar:
-        st.markdown("### 📋 Chat Features")
-        st.markdown("""
-        - **📁 Local Storage**: Files are stored on the machine running this app.
-        - **⏱️ 24h Lifecycle**: Uploads are auto-deleted after 24 hours.
-        - **📄 Document & 🖼️ Image Upload**: Supports various formats.
-        - **Isolated Sessions**: Each upload creates a fresh knowledge base.
-        """)
+            submitted = st.form_submit_button("Start Session")
 
-        web_search_enabled = st.toggle(
-            "🌐 Enable Web Search",
-            value=st.session_state.web_search_enabled,
-            help="Allow the tutor to search the web. Requires a PPLX_API_KEY."
-        )
-        
+            if submitted:
+                if not teacher_name or not student_reports_str or not generated_content_str:
+                    st.error("Please fill in all fields: your name, student data, and content details.")
+                else:
+                    try:
+                        student_reports = json.loads(student_reports_str)
+                        generated_content_details = json.loads(generated_content_str)
+                        st.session_state.teacher_data = {
+                            "teacher_name": teacher_name,
+                            "student_details_with_reports": student_reports,
+                            "generated_content_details": generated_content_details
+                        }
+                        st.session_state.teacher_data_submitted = True
+                        st.rerun()
+                    except json.JSONDecodeError:
+                        st.error("Invalid JSON format. Please check the student data and/or content details you pasted.")
+    else:
+        st.markdown("Upload your lesson plans or other documents. They are stored locally and auto-deleted in 24 hours.")
 
-        if web_search_enabled != st.session_state.web_search_enabled:
-            st.session_state.web_search_enabled = web_search_enabled
-            
-            # Check if the tutor object exists before trying to update it
-            if "tutor" in st.session_state and st.session_state.tutor is not None:
-                # Call the new method to dynamically update the tool
-                st.session_state.tutor.update_web_search_status(web_search_enabled)
-                status = "enabled" if web_search_enabled else "disabled"
-                st.toast(f"✅ Web search {status}!", icon="🌐")
-            else:
-                # Fallback to re-initialization ONLY if the tutor object doesn't exist
+        if not initialize_tutor():
+            st.error("Tutor initialization failed. Please refresh the page.")
+            return
+
+        with st.sidebar:
+            st.markdown("### 📋 Chat Features")
+            st.markdown("""
+            - **📁 Local Storage**: Files are stored on the machine running this app.
+            - **⏱️ 24h Lifecycle**: Uploads are auto-deleted after 24 hours.
+            - **📄 Document & 🖼️ Image Upload**: Supports various formats.
+            - **Isolated Sessions**: Each upload creates a fresh knowledge base.
+            """)
+
+            web_search_enabled = st.toggle(
+                "🌐 Enable Web Search",
+                value=st.session_state.web_search_enabled,
+                help="Allow the assistant to search the web for supplementary materials."
+            )
+
+            if web_search_enabled != st.session_state.web_search_enabled:
+                st.session_state.web_search_enabled = web_search_enabled
+
+                if "tutor" in st.session_state and st.session_state.tutor is not None:
+                    st.session_state.tutor.update_web_search_status(web_search_enabled)
+                    status = "enabled" if web_search_enabled else "disabled"
+                    st.toast(f"✅ Web search {status}!", icon="🌐")
+                else:
+                    initialize_tutor(force_reinit=True)
+
+                st.rerun()
+
+            st.success("✅ Knowledge base ready!") if st.session_state.knowledge_base_ready else st.info("ℹ️ Upload files for RAG")
+
+            if st.button("🗑️ Start New Session", use_container_width=True):
+                if "storage_manager" in st.session_state:
+                    st.session_state.storage_manager.clear_all_data()
+                st.session_state.messages = []
+                st.session_state.knowledge_base_ready = False
+                st.session_state.uploader_key += 1
+                st.session_state.teacher_data = None
+                st.session_state.teacher_data_submitted = False
+                if 'files_for_context' in st.session_state:
+                    del st.session_state['files_for_context']
                 initialize_tutor(force_reinit=True)
-            
-            # Use st.rerun() to immediately reflect the change in the UI
-            st.rerun()
+                st.rerun()
 
-        st.success("✅ Knowledge base ready!") if st.session_state.knowledge_base_ready else st.info("ℹ️ Upload files for RAG")
+        # Display chat history
+        for message in st.session_state.messages:
+            display_chat_message(message["role"], message["content"], message.get("files"))
 
-        if st.button("🗑️ Clear Chat, KB & Files", use_container_width=True):
-            if "storage_manager" in st.session_state:
-                st.session_state.storage_manager.clear_all_data()
-            st.session_state.messages = []
-            st.session_state.knowledge_base_ready = False
-            st.session_state.uploader_key += 1
-            if 'files_for_context' in st.session_state:
-                del st.session_state['files_for_context']
-            initialize_tutor(force_reinit=True)
-            st.rerun()
+        # Auto-generate welcome message if chat is empty
+        if not st.session_state.messages and st.session_state.get("teacher_data"):
+            st.info("Your AI Teaching Assistant is preparing your personalized welcome...")
+            initial_query = "Please greet the teacher and introduce yourself as their teaching assistant."
 
-    # Display chat history
-    for message in st.session_state.messages:
-        display_chat_message(message["role"], message["content"], message.get("files"))
-
-    st.markdown("---")
-
-    uploaded_files = st.file_uploader(
-        "📎 Upload documents or images for a new session",
-        accept_multiple_files=True,
-        type=['pdf', 'docx', 'txt', 'md', 'json', 'html', 'jpg', 'jpeg', 'png', 'webp'],
-        key=f"file_uploader_{st.session_state.uploader_key}"
-    )
-
-    if uploaded_files and uploaded_files != st.session_state.last_uploaded_files:
-        st.session_state.last_uploaded_files = uploaded_files
-        handle_uploads_and_ingest(uploaded_files)
-        st.session_state.uploader_key += 1
-        st.rerun()
-
-    if user_input := st.chat_input("💬 Ask me anything..."):
-        files_for_context = st.session_state.get("files_for_context")
-        chat_history_for_rephrasing = st.session_state.messages[:]
-        
-        st.session_state.messages.append({"role": "user", "content": user_input, "files": files_for_context})
-        display_chat_message("user", user_input, files_for_context)
-
-        full_response = ""
-        try:
-            # Display assistant response in a streaming fashion
             with st.chat_message("assistant", avatar="🎓"):
                 response_placeholder = st.empty()
-                
-                async def stream_response():
-                    """Defines and runs the streaming coroutine."""
-                    nonlocal full_response
-                    # Add a blinking cursor effect
+
+                async def stream_welcome():
+                    full_response = ""
                     cursor = "▌"
-                    
                     streamer = get_response_stream_async(
-                        user_input,
-                        chat_history_for_rephrasing,
-                        uploaded_files=files_for_context
+                        initial_query,
+                        [],
+                        teaching_data=st.session_state.teacher_data
                     )
                     async for chunk in streamer:
                         full_response += chunk
                         response_placeholder.markdown(full_response + cursor)
-                    # Remove cursor after streaming is complete
                     response_placeholder.markdown(full_response)
+                    return full_response
 
-                run_async(stream_response())
+                welcome_response = run_async(stream_welcome())
+                if welcome_response:
+                    st.session_state.messages.append({"role": "assistant", "content": welcome_response})
+                    st.rerun()
 
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            
-        except Exception as e:
-            error_msg = f"An error occurred: {str(e)}"
-            st.error(error_msg)
-            logger.error(f"Error in chat response stream: {e}", exc_info=True)
-            st.session_state.messages.append({"role": "assistant", "content": error_msg})
+        st.markdown("---")
 
-        # Clean up context for the next turn
-        if 'files_for_context' in st.session_state:
-            del st.session_state['files_for_context']
+        uploaded_files = st.file_uploader(
+            "📎 Upload your content (lesson plans, worksheets, etc.)",
+            accept_multiple_files=True,
+            type=['pdf', 'docx', 'txt', 'md', 'json', 'html', 'jpg', 'jpeg', 'png', 'webp'],
+            key=f"file_uploader_{st.session_state.uploader_key}"
+        )
+
+        if uploaded_files and uploaded_files != st.session_state.last_uploaded_files:
+            st.session_state.last_uploaded_files = uploaded_files
+            handle_uploads_and_ingest(uploaded_files)
+            st.session_state.uploader_key += 1
+            st.rerun()
+
+        if user_input := st.chat_input("💬 How can I help you today?"):
+            files_for_context = st.session_state.get("files_for_context")
+            chat_history_for_rephrasing = st.session_state.messages[:]
+
+            st.session_state.messages.append({"role": "user", "content": user_input, "files": files_for_context})
+            display_chat_message("user", user_input, files_for_context)
+
+            full_response = ""
+            try:
+                with st.chat_message("assistant", avatar="🎓"):
+                    response_placeholder = st.empty()
+
+                    async def stream_response():
+                        nonlocal full_response
+                        cursor = "▌"
+
+                        streamer = get_response_stream_async(
+                            user_input,
+                            chat_history_for_rephrasing,
+                            uploaded_files=files_for_context,
+                            teaching_data=st.session_state.teacher_data
+                        )
+
+                        is_image_response = False
+
+                        async for chunk in streamer:
+                            if full_response == "" and chunk.startswith("__IMAGE_RESPONSE__"):
+                                is_image_response = True
+                                chunk = chunk.replace("__IMAGE_RESPONSE__", "", 1)
+
+                            full_response += chunk
+                            response_placeholder.markdown(full_response + cursor)
+
+                        response_placeholder.markdown(full_response)
+                        return is_image_response
+
+                    is_image_response = run_async(stream_response())
+
+                    if not is_image_response:
+                        st.session_state.messages.append({"role": "assistant", "content": full_response})
+                    else:
+                        st.session_state.messages.append({"role": "assistant", "content": "Generated an image based on your request."})
+
+            except Exception as e:
+                error_msg = f"An error occurred: {str(e)}"
+                st.error(error_msg)
+                logger.error(f"Error in chat response stream: {e}", exc_info=True)
+                st.session_state.messages.append({"role": "assistant", "content": error_msg})
+
+            if 'files_for_context' in st.session_state:
+                del st.session_state['files_for_context']
 
 if __name__ == "__main__":
     main()
